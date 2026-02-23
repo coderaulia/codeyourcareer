@@ -29,7 +29,9 @@
         </section>
 
         <main class="fade-in-up">
-            <div class="d-flex flex-column gap-2 text-start">
+            <!-- Dynamic links loaded from Supabase -->
+            <div id="dynamic-links" class="d-flex flex-column gap-2 text-start">
+                <!-- Fallback: shown while loading or if Supabase fails -->
                 <a href="https://www.linkedin.com/in/auliasatriowibowo/" target="_blank" class="link-card">
                     <span class="link-icon"><i class="bi bi-linkedin"></i></span>
                     <span class="link-text">Career Hacks on LinkedIn</span>
@@ -116,6 +118,8 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
