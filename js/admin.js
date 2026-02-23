@@ -8,11 +8,39 @@ function switchAdminTab(btn, tabName) {
 }
 
 async function initAdmin() {
+    refreshDashboard();
     loadSiteSettingsAdmin();
     refreshAdminLinks();
     refreshResources();
     refreshBookings();
     refreshModulesAdmin();
+}
+
+/* ========== Dashboard Overview ========== */
+async function refreshDashboard() {
+    // 1. Fetch Links count
+    sb.from('links').select('id', { count: 'exact' }).then(({ count }) => {
+        const el = document.getElementById('stat-links');
+        if (el) el.textContent = count !== null ? count : 0;
+    });
+
+    // 2. Fetch New Bookings
+    sb.from('bookings').select('id', { count: 'exact' }).eq('status', 'pending').then(({ count }) => {
+        const el = document.getElementById('stat-bookings');
+        if (el) el.textContent = count !== null ? count : 0;
+    });
+
+    // 3. Fetch Unread Messages
+    sb.from('contact_messages').select('id', { count: 'exact' }).eq('is_read', false).then(({ count }) => {
+        const el = document.getElementById('stat-messages');
+        if (el) el.textContent = count !== null ? count : 0;
+    });
+
+    // 4. Fetch Tracked Clicks
+    sb.from('link_clicks').select('id', { count: 'exact' }).then(({ count }) => {
+        const el = document.getElementById('stat-clicks');
+        if (el) el.textContent = count !== null ? count : 0;
+    });
 }
 
 /* ========== Site Settings ========== */
@@ -78,6 +106,16 @@ async function refreshModulesAdmin() {
                 <div><i class="bi ${m.icon} me-2"></i><strong>${escapeHtml(m.name)}</strong><div class="text-muted small">${escapeHtml(m.description || '')}</div></div>
                 <label class="toggle-switch"><input type="checkbox" ${m.is_enabled ? 'checked' : ''} onchange="toggleModule('${m.slug}',this.checked)"><span class="toggle-slider"></span></label>
             </div>`).join('');
+
+        // Populate Dashboard Active Modules
+        const dashboardMod = document.getElementById('dashboard-active-modules');
+        if (dashboardMod) {
+            const activeMods = data.filter(m => m.is_enabled);
+            dashboardMod.innerHTML = activeMods.length > 0
+                ? activeMods.map(m => `<div class="d-flex align-items-center small border p-2 rounded bg-light"><i class="bi ${m.icon} me-2 text-primary"></i> <span class="fw-bold">${escapeHtml(m.name)}</span></div>`).join('')
+                : '<div class="text-muted small">No active modules.</div>';
+        }
+
         // Show/hide module-specific panels
         data.forEach(m => {
             const panel = document.getElementById('mod-' + m.slug);

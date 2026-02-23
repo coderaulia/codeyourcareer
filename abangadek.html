@@ -3,7 +3,14 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Security meta tags -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com https://gloejpacnqxvxcmgtiwr.supabase.co https://*.supabase.co; img-src 'self' data: https: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net text/css https://fonts.googleapis.com;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>CYC Management | Welcome Aul!</title>
+    <link rel="icon" type="image/png" href="cyc-logo.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="style.css">
@@ -29,14 +36,62 @@
 
         <!-- Tabs -->
         <nav class="admin-tabs mb-4">
-            <button class="admin-tab active" onclick="switchAdminTab(this,'appearance')">🎨 Appearance</button>
+            <button class="admin-tab active" onclick="switchAdminTab(this,'overview')">📊 Dashboard</button>
+            <button class="admin-tab" onclick="switchAdminTab(this,'appearance')">🎨 Appearance</button>
             <button class="admin-tab" onclick="switchAdminTab(this,'links')">🔗 Links</button>
             <button class="admin-tab" onclick="switchAdminTab(this,'content')">📦 Content</button>
             <button class="admin-tab" onclick="switchAdminTab(this,'modules')">🧩 Modules</button>
         </nav>
 
+        <!-- TAB: Overview (Dashboard Landing) -->
+        <div id="tab-overview" class="admin-tab-panel active">
+            <div class="row g-4">
+                <div class="col-md-7">
+                    <div class="admin-card mb-4">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-speedometer2"></i> Quick Stats</h5>
+                        <div class="row g-3" id="dashboard-stats">
+                            <div class="col-6">
+                                <div class="p-3 border rounded text-center">
+                                    <div class="fs-4 fw-bold" id="stat-links">-</div>
+                                    <div class="small text-muted">Active Links</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 border rounded text-center">
+                                    <div class="fs-4 fw-bold" id="stat-bookings">-</div>
+                                    <div class="small text-muted">New Bookings</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 border rounded text-center">
+                                    <div class="fs-4 fw-bold" id="stat-messages">-</div>
+                                    <div class="small text-muted">Unread Messages</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 border rounded text-center">
+                                    <div class="fs-4 fw-bold" id="stat-clicks">-</div>
+                                    <div class="small text-muted">Tracked Clicks</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="admin-card">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-cpu"></i> Active Modules</h5>
+                        <div id="dashboard-active-modules" class="d-flex flex-column gap-2">
+                            <div class="text-muted small">Loading state...</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-dark mt-3 w-100"
+                            onclick="document.querySelector('.admin-tab:last-child').click()">Manage Modules</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- TAB: Appearance -->
-        <div id="tab-appearance" class="admin-tab-panel active">
+        <div id="tab-appearance" class="admin-tab-panel">
             <div class="row g-4">
                 <div class="col-md-6">
                     <div class="admin-card">

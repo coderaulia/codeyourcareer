@@ -4,7 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Security meta tags -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com https://gloejpacnqxvxcmgtiwr.supabase.co https://*.supabase.co; img-src 'self' data: https: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net text/css https://fonts.googleapis.com;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>CodeYourCareer | Build The Future</title>
+    <link rel="icon" type="image/png" href="cyc-logo.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -76,16 +82,18 @@
             <form id="bookingForm" onsubmit="handleFormSubmit(event)">
                 <input type="text" id="hp_field" style="display:none" tabindex="-1" autocomplete="off">
                 <div class="mb-3"><label class="form-label small fw-bold">NAME</label><input type="text" id="name"
-                        class="form-control" placeholder="Your Name" required></div>
+                        class="form-control" placeholder="Your Name" required minlength="2" maxlength="100"
+                        pattern="[a-zA-Z\s.-]+"></div>
                 <div class="mb-3"><label class="form-label small fw-bold">EMAIL</label><input type="email" id="email"
-                        class="form-control" placeholder="you@example.com" required></div>
+                        class="form-control" placeholder="you@example.com" required maxlength="150"></div>
                 <div class="mb-3"><label class="form-label small fw-bold">SCHEDULED DATE & TIME</label><input
                         type="datetime-local" id="schedule" class="form-control" required></div>
                 <div class="mb-4"><label class="form-label small fw-bold">TOPIC</label>
-                    <select id="topic" class="form-select">
-                        <option>CV Review</option>
-                        <option>Interview Prep</option>
-                        <option>LinkedIn Hacks</option>
+                    <select id="topic" class="form-select" required>
+                        <option value="" disabled selected>Select a topic</option>
+                        <option value="CV Review">CV Review</option>
+                        <option value="Interview Prep">Interview Prep</option>
+                        <option value="LinkedIn Hacks">LinkedIn Hacks</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Submit Request</button>
@@ -99,11 +107,14 @@
             <form onsubmit="handleContactSubmit(event)">
                 <input type="text" id="hp_contact" style="display:none" tabindex="-1" autocomplete="off">
                 <div class="mb-3"><label class="form-label small fw-bold">NAME</label><input type="text"
-                        id="contact-name" class="form-control" placeholder="Your Name" required></div>
+                        id="contact-name" class="form-control" placeholder="Your Name" required minlength="2"
+                        maxlength="100"></div>
                 <div class="mb-3"><label class="form-label small fw-bold">EMAIL</label><input type="email"
-                        id="contact-email" class="form-control" placeholder="you@example.com" required></div>
+                        id="contact-email" class="form-control" placeholder="you@example.com" required maxlength="150">
+                </div>
                 <div class="mb-4"><label class="form-label small fw-bold">MESSAGE</label><textarea id="contact-message"
-                        class="form-control" rows="4" placeholder="Your message..." required></textarea></div>
+                        class="form-control" rows="4" placeholder="Your message..." required minlength="10"
+                        maxlength="1000"></textarea></div>
                 <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Send Message</button>
             </form>
         </div>
