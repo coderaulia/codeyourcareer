@@ -12,7 +12,7 @@ function checkAdminSession() {
 function adminLogout() {
     localStorage.removeItem('cyc_admin_auth');
     localStorage.removeItem('cyc_admin_user');
-    supabase.auth.signOut();
+    sb.auth.signOut();
     location.reload();
 }
 
@@ -39,7 +39,7 @@ async function loadLinks() {
     if (!container) return;
 
     try {
-        const { data, error } = await supabase
+        const { data, error } = await sb
             .from('links')
             .select('*')
             .eq('is_active', true)
@@ -95,7 +95,7 @@ async function fetchResources(table, containerId) {
     container.innerHTML = `<div class="text-muted small text-center py-4">Loading data...</div>`;
 
     try {
-        const { data, error } = await supabase
+        const { data, error } = await sb
             .from(table)
             .select('*')
             .order('display_order', { ascending: true });
@@ -135,7 +135,7 @@ async function handleFormSubmit(e) {
     };
 
     try {
-        const { data, error } = await supabase
+        const { data, error } = await sb
             .from('bookings')
             .insert([payload]);
 
@@ -161,8 +161,7 @@ async function adminLogin() {
 
     try {
         // Authenticate using Supabase Auth (email-based)
-        // The username is treated as an email for Supabase Auth
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await sb.auth.signInWithPassword({
             email: user,
             password: pass
         });
@@ -194,14 +193,13 @@ async function refreshAdmin() {
         el.innerHTML = '<small class="text-muted">Syncing...</small>';
 
         try {
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from(table)
                 .select('*')
                 .order('display_order', { ascending: true });
 
             if (error) throw error;
 
-            const sheetName = table.charAt(0).toUpperCase() + table.slice(1);
             el.innerHTML = data.length > 0
                 ? data.map(r => `<div class="d-flex justify-content-between border-bottom py-2 small"><span>${r.title}</span><div><button class="btn btn-link p-0 me-2" onclick="editItem('${table}', ${JSON.stringify(r).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteItem('${table}','${r.id}')">Del</button></div></div>`).join('')
                 : `<small class="text-muted">No ${table} found.</small>`;
@@ -215,7 +213,7 @@ async function refreshAdmin() {
     if (bookingEl) {
         bookingEl.innerHTML = '<small class="text-muted">Syncing...</small>';
         try {
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from('bookings')
                 .select('*')
                 .order('created_at', { ascending: false });
@@ -261,7 +259,7 @@ async function refreshAdminLinks() {
     el.innerHTML = '<small class="text-muted">Syncing links...</small>';
 
     try {
-        const { data, error } = await supabase
+        const { data, error } = await sb
             .from('links')
             .select('*')
             .order('display_order', { ascending: true });
@@ -319,17 +317,10 @@ async function saveLink(e) {
 
     try {
         if (id) {
-            // Update existing link
-            const { error } = await supabase
-                .from('links')
-                .update(payload)
-                .eq('id', id);
+            const { error } = await sb.from('links').update(payload).eq('id', id);
             if (error) throw error;
         } else {
-            // Insert new link
-            const { error } = await supabase
-                .from('links')
-                .insert([payload]);
+            const { error } = await sb.from('links').insert([payload]);
             if (error) throw error;
         }
 
@@ -366,7 +357,7 @@ function editLink(linkData) {
 async function deleteLink(id) {
     if (confirm('Delete this link?')) {
         try {
-            const { error } = await supabase.from('links').delete().eq('id', id);
+            const { error } = await sb.from('links').delete().eq('id', id);
             if (error) throw error;
             refreshAdminLinks();
         } catch (err) {
@@ -390,7 +381,7 @@ async function saveResource(e) {
     btn.disabled = true;
     btn.innerText = "Saving...";
 
-    const table = document.getElementById('form-sheet').value.toLowerCase(); // 'freebies' or 'gear'
+    const table = document.getElementById('form-sheet').value.toLowerCase();
     const id = document.getElementById('form-id').value;
     const title = document.getElementById('form-title').value;
     const link = document.getElementById('form-link').value;
@@ -402,10 +393,10 @@ async function saveResource(e) {
 
     try {
         if (id) {
-            const { error } = await supabase.from(table).update(payload).eq('id', id);
+            const { error } = await sb.from(table).update(payload).eq('id', id);
             if (error) throw error;
         } else {
-            const { error } = await supabase.from(table).insert([payload]);
+            const { error } = await sb.from(table).insert([payload]);
             if (error) throw error;
         }
 
@@ -433,7 +424,7 @@ function editItem(table, data) {
 async function deleteItem(table, id) {
     if (confirm('Delete this item?')) {
         try {
-            const { error } = await supabase.from(table).delete().eq('id', id);
+            const { error } = await sb.from(table).delete().eq('id', id);
             if (error) throw error;
             refreshAdmin();
         } catch (err) {
@@ -448,7 +439,7 @@ async function confirmBooking(id, name, email, topic, schedule) {
     if (!meetLink) return;
 
     try {
-        const { error } = await supabase
+        const { error } = await sb
             .from('bookings')
             .update({ meetlink: meetLink, status: 'confirmed' })
             .eq('id', id);
