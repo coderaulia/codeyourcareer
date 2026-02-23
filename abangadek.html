@@ -10,130 +10,246 @@
 </head>
 
 <body>
+    <!-- Login -->
     <div id="loginGate" class="admin-card mx-auto mt-5" style="max-width: 400px;">
         <h3 class="fw-bold mb-4 text-center">CYC Access</h3>
-        <input type="email" id="user" class="form-control mb-2" placeholder="Email">
-        <input type="password" id="pass" class="form-control mb-3" placeholder="Password">
-        <button class="btn btn-dark w-100" onclick="adminLogin()">Enter Dashboard</button>
+        <form onsubmit="adminLogin(); return false;">
+            <input type="email" id="user" class="form-control mb-2" placeholder="Email" required>
+            <input type="password" id="pass" class="form-control mb-3" placeholder="Password" required>
+            <button type="submit" class="btn btn-dark w-100">Enter Dashboard</button>
+        </form>
     </div>
 
-    <div id="dashboard" class="container hidden mt-5">
-        <div class="d-flex justify-content-between mb-4">
-            <h2 class="fw-bold">CYC Management | Welcome Aul!</h2>
+    <!-- Dashboard -->
+    <div id="dashboard" class="container hidden mt-4" style="max-width:1100px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0">CYC Management</h4>
             <button class="btn btn-sm btn-outline-danger" onclick="adminLogout()">Logout</button>
         </div>
 
-        <div class="row g-4">
-            <!-- LEFT COLUMN: Forms -->
-            <div class="col-md-5">
-                <!-- Link Editor -->
-                <div id="link-editor-card" class="admin-card mb-4">
-                    <h5 class="fw-bold mb-3"><i class="bi bi-link-45deg"></i> Link Editor</h5>
-                    <p class="small text-muted mb-3">Manage the social/navigation links shown on the main page.</p>
-                    <form onsubmit="saveLink(event)">
-                        <input type="hidden" id="link-id">
-                        <div class="mb-2">
-                            <label class="small fw-bold">TITLE</label>
-                            <input type="text" id="link-title" class="form-control"
-                                placeholder="e.g. Career Hacks on LinkedIn" required>
-                        </div>
-                        <div class="mb-2">
-                            <label class="small fw-bold">URL</label>
-                            <input type="text" id="link-url" class="form-control" placeholder="https://..." required>
-                        </div>
-                        <div class="mb-2">
-                            <label class="small fw-bold">ICON (Bootstrap Icons class)</label>
-                            <input type="text" id="link-icon" class="form-control" placeholder="bi-linkedin"
-                                value="bi-link-45deg">
-                            <div class="form-text">Use <a href="https://icons.getbootstrap.com/"
-                                    target="_blank">Bootstrap Icons</a> class name</div>
-                        </div>
-                        <div class="mb-2">
-                            <label class="small fw-bold">TYPE</label>
-                            <select id="link-type" class="form-select" onchange="toggleInternalFields()">
-                                <option value="external">External Link</option>
-                                <option value="internal">Internal Page</option>
-                            </select>
-                        </div>
-                        <div id="internal-fields" style="display:none;">
-                            <div class="mb-2">
-                                <label class="small fw-bold">INTERNAL TARGET</label>
-                                <select id="link-internal-target" class="form-select">
-                                    <option value="">-- Select --</option>
-                                    <option value="freebies">Freebies</option>
-                                    <option value="gear">Gear</option>
-                                    <option value="consultation">Consultation</option>
-                                </select>
-                            </div>
-                            <div class="mb-2">
-                                <label class="small fw-bold">BACKGROUND COLOR</label>
-                                <input type="text" id="link-style-bg" class="form-control" placeholder="#f1f3f5">
-                            </div>
-                        </div>
-                        <div class="mb-2">
-                            <label class="small fw-bold">DISPLAY ORDER</label>
-                            <input type="number" id="link-order" class="form-control" value="0" min="0">
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" id="link-active" class="form-check-input" checked>
-                            <label for="link-active" class="form-check-label small fw-bold">Active (visible on
-                                site)</label>
-                        </div>
-                        <button type="submit" class="btn btn-dark w-100">Save Link</button>
-                        <button type="button" class="btn btn-link w-100 text-muted small mt-2"
-                            onclick="document.getElementById('link-id').value=''; this.closest('form').reset(); document.getElementById('link-active').checked=true;">Cancel
-                            / Reset</button>
-                    </form>
-                </div>
+        <!-- Tabs -->
+        <nav class="admin-tabs mb-4">
+            <button class="admin-tab active" onclick="switchAdminTab(this,'appearance')">🎨 Appearance</button>
+            <button class="admin-tab" onclick="switchAdminTab(this,'links')">🔗 Links</button>
+            <button class="admin-tab" onclick="switchAdminTab(this,'content')">📦 Content</button>
+            <button class="admin-tab" onclick="switchAdminTab(this,'modules')">🧩 Modules</button>
+        </nav>
 
-                <!-- Resource Form -->
-                <div class="admin-card">
-                    <h5 class="fw-bold mb-3"><i class="bi bi-folder-plus"></i> Add / Edit Resource</h5>
-                    <form onsubmit="saveResource(event)">
-                        <input type="hidden" id="form-id">
-                        <div class="mb-2">
-                            <label class="small fw-bold">TARGET TABLE</label>
-                            <select id="form-sheet" class="form-select" required>
-                                <option value="Freebies">Freebies</option>
-                                <option value="Gear">Gear</option>
+        <!-- TAB: Appearance -->
+        <div id="tab-appearance" class="admin-tab-panel active">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="admin-card">
+                        <h5 class="fw-bold mb-3">Site Content</h5>
+                        <div class="mb-2"><label class="small fw-bold">SITE NAME</label><input type="text"
+                                id="set-site-name" class="form-control"></div>
+                        <div class="mb-2"><label class="small fw-bold">HEADLINE</label><input type="text"
+                                id="set-headline" class="form-control"></div>
+                        <div class="mb-2"><label class="small fw-bold">SUBHEADLINE</label><textarea id="set-subheadline"
+                                class="form-control" rows="2"></textarea></div>
+                        <div class="mb-2"><label class="small fw-bold">FOOTER TEXT</label><input type="text"
+                                id="set-footer" class="form-control"></div>
+                        <hr>
+                        <h6 class="fw-bold mb-2">CTA Section</h6>
+                        <div class="mb-2"><label class="small fw-bold">CTA TITLE</label><input type="text"
+                                id="set-cta-title" class="form-control"></div>
+                        <div class="mb-2"><label class="small fw-bold">CTA SUBTITLE</label><input type="text"
+                                id="set-cta-subtitle" class="form-control"></div>
+                        <div class="mb-3"><label class="small fw-bold">CTA BUTTON TEXT</label><input type="text"
+                                id="set-cta-button" class="form-control"></div>
+                        <button class="btn btn-dark w-100" onclick="saveSiteSettings()">Save Settings</button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="admin-card mb-4">
+                        <h5 class="fw-bold mb-3">Logo</h5>
+                        <div class="mb-2"><label class="small fw-bold">LOGO TYPE</label>
+                            <select id="set-logo-type" class="form-select" onchange="toggleLogoFields()">
+                                <option value="svg">SVG Code</option>
+                                <option value="image">Image URL</option>
+                                <option value="emoji">Emoji</option>
                             </select>
                         </div>
-                        <div class="mb-2"><label class="small fw-bold">TITLE</label><input type="text" id="form-title"
-                                class="form-control" required></div>
-                        <div class="mb-2"><label class="small fw-bold">DESC / CATEGORY</label><input type="text"
-                                id="form-extra" class="form-control"></div>
-                        <div class="mb-3"><label class="small fw-bold">URL LINK</label><input type="text" id="form-link"
-                                class="form-control" required></div>
-                        <button type="submit" class="btn btn-dark w-100">Save to Database</button>
-                        <button type="button" class="btn btn-link w-100 text-muted small mt-2"
-                            onclick="location.reload()">Cancel / Reset</button>
-                    </form>
+                        <div id="logo-svg-field" class="mb-2"><label class="small fw-bold">SVG CODE</label><textarea
+                                id="set-logo-svg" class="form-control" rows="3" style="font-size:0.75rem;"></textarea>
+                        </div>
+                        <div id="logo-image-field" class="mb-2" style="display:none"><label class="small fw-bold">IMAGE
+                                URL</label><input type="text" id="set-logo-image" class="form-control"></div>
+                        <div id="logo-emoji-field" class="mb-2" style="display:none"><label
+                                class="small fw-bold">EMOJI</label><input type="text" id="set-logo-emoji"
+                                class="form-control" maxlength="4"></div>
+                    </div>
+                    <div class="admin-card">
+                        <h5 class="fw-bold mb-3">Theme Colors</h5>
+                        <div class="color-row">
+                            <div class="color-item"><label>Background</label><input type="color" id="set-bg-color"
+                                    value="#f8f9fa"></div>
+                            <div class="color-item"><label>Text</label><input type="color" id="set-text-color"
+                                    value="#111111"></div>
+                            <div class="color-item"><label>Secondary</label><input type="color" id="set-text-sec"
+                                    value="#555555"></div>
+                            <div class="color-item"><label>Accent</label><input type="color" id="set-accent"
+                                    value="#000000"></div>
+                        </div>
+                        <div class="color-row">
+                            <div class="color-item"><label>Card BG</label><input type="color" id="set-card-bg"
+                                    value="#ffffff"></div>
+                            <div class="color-item"><label>Card Border</label><input type="color" id="set-card-border"
+                                    value="#e0e0e0"></div>
+                        </div>
+                        <h6 class="fw-bold mt-3 mb-2" style="font-size:0.85rem;">CTA Colors</h6>
+                        <div class="color-row">
+                            <div class="color-item"><label>CTA BG</label><input type="color" id="set-cta-bg"
+                                    value="#111111"></div>
+                            <div class="color-item"><label>CTA Text</label><input type="color" id="set-cta-text"
+                                    value="#ffffff"></div>
+                            <div class="color-item"><label>Btn BG</label><input type="color" id="set-cta-btn-bg"
+                                    value="#ffffff"></div>
+                            <div class="color-item"><label>Btn Text</label><input type="color" id="set-cta-btn-text"
+                                    value="#000000"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- RIGHT COLUMN: Lists -->
-            <div class="col-md-7">
-                <!-- Links List -->
-                <div class="admin-card mb-4">
-                    <h5 class="fw-bold"><i class="bi bi-link-45deg"></i> Homepage Links</h5>
-                    <p class="small text-muted">These links appear on the main page (index.html)</p>
-                    <div id="list-links"></div>
+        <!-- TAB: Links -->
+        <div id="tab-links" class="admin-tab-panel">
+            <div class="row g-4">
+                <div class="col-md-5">
+                    <div id="link-editor-card" class="admin-card">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-link-45deg"></i> Link Editor</h5>
+                        <form onsubmit="saveLink(event)">
+                            <input type="hidden" id="link-id">
+                            <div class="mb-2"><label class="small fw-bold">TITLE</label><input type="text"
+                                    id="link-title" class="form-control" required></div>
+                            <div class="mb-2"><label class="small fw-bold">URL</label><input type="text" id="link-url"
+                                    class="form-control" required></div>
+                            <div class="mb-2"><label class="small fw-bold">ICON</label><input type="text" id="link-icon"
+                                    class="form-control" value="bi-link-45deg">
+                                <div class="form-text"><a href="https://icons.getbootstrap.com/" target="_blank">Browse
+                                        icons</a></div>
+                            </div>
+                            <div class="mb-2"><label class="small fw-bold">TYPE</label>
+                                <select id="link-type" class="form-select" onchange="toggleInternalFields()">
+                                    <option value="external">External</option>
+                                    <option value="internal">Internal</option>
+                                </select>
+                            </div>
+                            <div id="internal-fields" style="display:none;">
+                                <div class="mb-2"><label class="small fw-bold">TARGET</label>
+                                    <select id="link-internal-target" class="form-select">
+                                        <option value="">--</option>
+                                        <option value="freebies">Freebies</option>
+                                        <option value="gear">Gear</option>
+                                        <option value="consultation">Consultation</option>
+                                        <option value="contact">Contact</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2"><label class="small fw-bold">BG COLOR</label><input type="text"
+                                        id="link-style-bg" class="form-control" placeholder="#f1f3f5"></div>
+                            </div>
+                            <div class="mb-2"><label class="small fw-bold">ORDER</label><input type="number"
+                                    id="link-order" class="form-control" value="0"></div>
+                            <div class="mb-3 form-check"><input type="checkbox" id="link-active"
+                                    class="form-check-input" checked><label for="link-active"
+                                    class="form-check-label small fw-bold">Active</label></div>
+                            <button type="submit" class="btn btn-dark w-100">Save Link</button>
+                            <button type="button" class="btn btn-link w-100 text-muted small mt-1"
+                                onclick="resetLinkForm()">Cancel</button>
+                        </form>
+                    </div>
                 </div>
+                <div class="col-md-7">
+                    <div class="admin-card">
+                        <h5 class="fw-bold">Homepage Links</h5>
+                        <div id="list-links"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <!-- Resources List -->
-                <div class="admin-card mb-4">
-                    <h5 class="fw-bold"><i class="bi bi-folder"></i> Resources List</h5>
-                    <h6 class="small fw-bold text-muted mt-3">FREEBIES</h6>
-                    <div id="list-freebies" class="mb-2"></div>
-                    <h6 class="small fw-bold text-muted mt-3">GEAR</h6>
-                    <div id="list-gear"></div>
+        <!-- TAB: Content -->
+        <div id="tab-content" class="admin-tab-panel">
+            <div class="row g-4">
+                <div class="col-md-5">
+                    <div class="admin-card">
+                        <h5 class="fw-bold mb-3">Add / Edit Resource</h5>
+                        <form onsubmit="saveResource(event)">
+                            <input type="hidden" id="form-id">
+                            <div class="mb-2"><label class="small fw-bold">TABLE</label><select id="form-sheet"
+                                    class="form-select">
+                                    <option value="Freebies">Freebies</option>
+                                    <option value="Gear">Gear</option>
+                                </select></div>
+                            <div class="mb-2"><label class="small fw-bold">TITLE</label><input type="text"
+                                    id="form-title" class="form-control" required></div>
+                            <div class="mb-2"><label class="small fw-bold">DESC / CATEGORY</label><input type="text"
+                                    id="form-extra" class="form-control"></div>
+                            <div class="mb-3"><label class="small fw-bold">URL</label><input type="text" id="form-link"
+                                    class="form-control" required></div>
+                            <button type="submit" class="btn btn-dark w-100">Save to Database</button>
+                        </form>
+                    </div>
                 </div>
+                <div class="col-md-7">
+                    <div class="admin-card mb-4">
+                        <h5 class="fw-bold">Resources</h5>
+                        <h6 class="small fw-bold text-muted mt-2">FREEBIES</h6>
+                        <div id="list-freebies"></div>
+                        <h6 class="small fw-bold text-muted mt-3">GEAR</h6>
+                        <div id="list-gear"></div>
+                    </div>
+                    <div class="admin-card">
+                        <h5 class="fw-bold"><i class="bi bi-calendar-check"></i> Bookings</h5>
+                        <div id="list-bookings"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <!-- Bookings -->
-                <div class="admin-card">
-                    <h5 class="fw-bold"><i class="bi bi-calendar-check"></i> Consultation Bookings</h5>
-                    <div id="list-bookings"></div>
-                </div>
+        <!-- TAB: Modules -->
+        <div id="tab-modules" class="admin-tab-panel">
+            <div class="admin-card mb-4">
+                <h5 class="fw-bold mb-3">Module Manager</h5>
+                <p class="small text-muted">Enable or disable features. Changes take effect immediately on the public
+                    page.</p>
+                <div id="module-list"></div>
+            </div>
+            <!-- Testimonials Manager -->
+            <div id="mod-testimonials" class="admin-card mb-4" style="display:none">
+                <h5 class="fw-bold mb-3"><i class="bi bi-chat-quote"></i> Testimonials</h5>
+                <form onsubmit="saveTestimonial(event)" class="mb-3">
+                    <input type="hidden" id="testi-id">
+                    <div class="row g-2 mb-2">
+                        <div class="col"><input type="text" id="testi-name" class="form-control form-control-sm"
+                                placeholder="Name" required></div>
+                        <div class="col"><input type="text" id="testi-role" class="form-control form-control-sm"
+                                placeholder="Role"></div>
+                        <div class="col-auto"><select id="testi-rating" class="form-select form-select-sm"
+                                style="width:70px">
+                                <option>5</option>
+                                <option>4</option>
+                                <option>3</option>
+                                <option>2</option>
+                                <option>1</option>
+                            </select></div>
+                    </div>
+                    <div class="mb-2"><textarea id="testi-content" class="form-control form-control-sm" rows="2"
+                            placeholder="Testimonial text..." required></textarea></div>
+                    <button type="submit" class="btn btn-dark btn-sm">Save Testimonial</button>
+                </form>
+                <div id="list-testimonials"></div>
+            </div>
+            <!-- Contact Messages -->
+            <div id="mod-contact" class="admin-card mb-4" style="display:none">
+                <h5 class="fw-bold mb-3"><i class="bi bi-envelope"></i> Contact Messages</h5>
+                <div id="list-messages"></div>
+            </div>
+            <!-- Analytics -->
+            <div id="mod-analytics" class="admin-card mb-4" style="display:none">
+                <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart-line"></i> Link Analytics</h5>
+                <div id="analytics-data"></div>
             </div>
         </div>
     </div>

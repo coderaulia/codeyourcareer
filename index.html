@@ -12,94 +12,76 @@
 </head>
 
 <body>
-
     <div class="container-narrow text-center">
         <div id="home" class="section-view active">
             <header class="brand-header fade-in-up">
-                <svg class="logo-svg" viewBox="0 0 100 100" fill="none">
-                    <rect x="5" y="5" width="90" height="90" rx="20" fill="black" />
-                    <path d="M35 30 L25 50 L35 70" stroke="white" stroke-width="6" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                    <path d="M65 30 L75 50 L65 70" stroke="white" stroke-width="6" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                    <path d="M50 65 L50 35 M50 35 L40 45 M50 35 L60 45" stroke="white" stroke-width="6"
-                        stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <div class="fw-bold">CodeYourCareer.my.id</div>
+                <div id="site-logo">
+                    <svg class="logo-svg" viewBox="0 0 100 100" fill="none">
+                        <rect x="5" y="5" width="90" height="90" rx="20" fill="black" />
+                        <path d="M35 30 L25 50 L35 70" stroke="white" stroke-width="6" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M65 30 L75 50 L65 70" stroke="white" stroke-width="6" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M50 65 L50 35 M50 35 L40 45 M50 35 L60 45" stroke="white" stroke-width="6"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div id="site-name" class="fw-bold">CodeYourCareer.my.id</div>
             </header>
 
             <section class="mb-5 mt-5 fade-in-up">
-                <h1 class="headline">Welcome to CodeYourCareer</h1>
-                <p class="subheadline mb-5">Every career has a code — and once you learn to decode it, you can build the
-                    future you want.</p>
+                <h1 id="site-headline" class="headline">Welcome to CodeYourCareer</h1>
+                <p id="site-subheadline" class="subheadline mb-5">Every career has a code — and once you learn to decode
+                    it, you can build the future you want.</p>
             </section>
 
             <main class="fade-in-up">
-                <!-- Dynamic links loaded from Supabase -->
                 <div id="dynamic-links" class="d-flex flex-column gap-2 text-start">
-                    <!-- Fallback: shown while loading or if Supabase fails -->
-                    <a href="https://www.linkedin.com/in/auliasatriowibowo/" target="_blank" class="link-card">
-                        <span class="link-icon"><i class="bi bi-linkedin"></i></span>
-                        <span class="link-text">Career Hacks on LinkedIn</span>
-                        <i class="bi bi-arrow-right"></i>
-                    </a>
-                    <a href="https://www.instagram.com/aulia.satrioo" target="_blank" class="link-card">
-                        <span class="link-icon"><i class="bi bi-instagram"></i></span>
-                        <span class="link-text">Industry Insights (Instagram)</span>
-                        <i class="bi bi-arrow-right"></i>
-                    </a>
-                    <a href="https://www.tiktok.com/@codeyourcareer" target="_blank" class="link-card">
-                        <span class="link-icon"><i class="bi bi-tiktok"></i></span>
-                        <span class="link-text">Quick Tips & Motivation (TikTok)</span>
-                        <i class="bi bi-arrow-right"></i>
-                    </a>
-
-                    <div class="my-2"></div>
-
-                    <div onclick="navigateTo('freebies')" class="link-card" style="background-color: #f1f3f5;">
-                        <span class="link-icon"><i class="bi bi-file-earmark-arrow-down-fill"></i></span>
-                        <span class="link-text">Freebies: CV Guide & Templates</span>
-                        <i class="bi bi-download"></i>
-                    </div>
-                    <div onclick="navigateTo('gear')" class="link-card" style="background-color: #f1f3f5;">
-                        <span class="link-icon"><i class="bi bi-bag-heart-fill"></i></span>
-                        <span class="link-text">My Tech & WFH Gear</span>
-                        <i class="bi bi-box-arrow-up-right"></i>
-                    </div>
+                    <div class="text-muted small text-center py-3">Loading...</div>
                 </div>
             </main>
 
-            <section class="consult-section fade-in-up">
-                <h3 class="fw-bold mb-2">Ready to debug your career?</h3>
-                <p class="small text-white-50 mb-3">1:1 Session for Students, Job Seekers & Professionals.</p>
-                <button onclick="navigateTo('consultation')" class="btn-cta">Mulai Konsultasi Karir Sekarang!</button>
+            <!-- Testimonials Module -->
+            <section id="testimonials-section" class="module-section fade-in-up" style="display:none">
+                <h3 class="fw-bold mb-3 text-start">What People Say</h3>
+                <div id="testimonials-list"></div>
             </section>
 
-            <footer class="footer fade-in-up mt-5">
+            <!-- CTA / Consultation Module -->
+            <section id="cta-section" class="consult-section fade-in-up" style="display:none">
+                <h3 id="cta-title" class="fw-bold mb-2">Ready to debug your career?</h3>
+                <p id="cta-subtitle" class="small mb-3">1:1 Session for Students, Job Seekers & Professionals.</p>
+                <button id="cta-button" onclick="navigateTo('consultation')" class="btn-cta">Mulai Konsultasi Karir
+                    Sekarang!</button>
+            </section>
+
+            <!-- Contact Module -->
+            <section id="contact-home-section" class="module-section fade-in-up" style="display:none">
+                <div class="consult-section" style="background: var(--accent);">
+                    <h3 class="fw-bold mb-2">Get in Touch</h3>
+                    <p class="small mb-3" style="opacity:0.7">Have a question? Send me a message!</p>
+                    <button onclick="navigateTo('contact')" class="btn-cta">Send a Message</button>
+                </div>
+            </section>
+
+            <footer id="site-footer" class="footer fade-in-up mt-5">
                 <p>© 2026 CodeYourCareer. All rights reserved.</p>
             </footer>
         </div>
 
+        <!-- Consultation Page -->
         <div id="consultation" class="section-view text-start">
             <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">← Back</button>
             <h2 class="fw-bold">Book a Session</h2>
             <form id="bookingForm" onsubmit="handleFormSubmit(event)">
                 <input type="text" id="hp_field" style="display:none" tabindex="-1" autocomplete="off">
-
-                <div class="mb-3">
-                    <label class="form-label small fw-bold">NAME</label>
-                    <input type="text" id="name" class="form-control" placeholder="Your Name" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-bold">EMAIL</label>
-                    <input type="email" id="email" class="form-control" placeholder="you@example.com" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-bold">SCHEDULED DATE & TIME</label>
-                    <input type="datetime-local" id="schedule" class="form-control" required>
-                </div>
-                <div class="mb-4">
-                    <label class="form-label small fw-bold">TOPIC</label>
+                <div class="mb-3"><label class="form-label small fw-bold">NAME</label><input type="text" id="name"
+                        class="form-control" placeholder="Your Name" required></div>
+                <div class="mb-3"><label class="form-label small fw-bold">EMAIL</label><input type="email" id="email"
+                        class="form-control" placeholder="you@example.com" required></div>
+                <div class="mb-3"><label class="form-label small fw-bold">SCHEDULED DATE & TIME</label><input
+                        type="datetime-local" id="schedule" class="form-control" required></div>
+                <div class="mb-4"><label class="form-label small fw-bold">TOPIC</label>
                     <select id="topic" class="form-select">
                         <option>CV Review</option>
                         <option>Interview Prep</option>
@@ -107,6 +89,22 @@
                     </select>
                 </div>
                 <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Submit Request</button>
+            </form>
+        </div>
+
+        <!-- Contact Page -->
+        <div id="contact" class="section-view text-start">
+            <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">← Back</button>
+            <h2 class="fw-bold mb-4">Contact Me</h2>
+            <form onsubmit="handleContactSubmit(event)">
+                <input type="text" id="hp_contact" style="display:none" tabindex="-1" autocomplete="off">
+                <div class="mb-3"><label class="form-label small fw-bold">NAME</label><input type="text"
+                        id="contact-name" class="form-control" placeholder="Your Name" required></div>
+                <div class="mb-3"><label class="form-label small fw-bold">EMAIL</label><input type="email"
+                        id="contact-email" class="form-control" placeholder="you@example.com" required></div>
+                <div class="mb-4"><label class="form-label small fw-bold">MESSAGE</label><textarea id="contact-message"
+                        class="form-control" rows="4" placeholder="Your message..." required></textarea></div>
+                <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Send Message</button>
             </form>
         </div>
 
