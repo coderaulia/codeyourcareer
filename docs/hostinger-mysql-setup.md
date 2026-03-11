@@ -11,9 +11,9 @@
 - Import [database/mysql-schema.sql](../database/mysql-schema.sql) into the new MySQL database.
 - This creates the public content tables, analytics tables, and the `admin_users` table.
 
-## 3. Configure environment variables in the Node.js app
+## 3. Configure environment variables
 
-Set these variables in Hostinger Node.js hosting:
+Set these variables in Hostinger:
 
 - `PORT`
 - `NODE_ENV=production`
@@ -25,15 +25,31 @@ Set these variables in Hostinger Node.js hosting:
 - `MYSQL_PASSWORD`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
-- `VITE_API_BASE_URL` leave blank when the frontend and API use the same domain. If you set it manually, use the site root like `https://codeyourcareer.my.id`, not `https://codeyourcareer.my.id/api`.
+- `VITE_API_BASE_URL`
+- `CORS_ALLOWED_ORIGINS`
 
-## 4. Install and build
+Recommended values by deployment mode:
 
-Run:
+- Same-domain app: `VITE_API_BASE_URL=` and `CORS_ALLOWED_ORIGINS=`
+- Separate API subdomain: `VITE_API_BASE_URL=https://api.codeyourcareer.my.id` and `CORS_ALLOWED_ORIGINS=https://codeyourcareer.my.id`
+
+Do not set `VITE_API_BASE_URL` to a value ending in `/api`.
+
+## 4. Build and start
+
+Frontend or full-stack app:
 
 ```bash
 npm install
 npm run build
+npm start
+```
+
+API-only app on `api.codeyourcareer.my.id`:
+
+```bash
+npm install
+npm start
 ```
 
 ## 5. Create the first admin user
@@ -46,18 +62,17 @@ npm run seed:admin
 
 This uses `ADMIN_EMAIL` and `ADMIN_PASSWORD` from the environment and stores a hashed password in MySQL.
 
-## 6. Start the app
+## 6. Important Hostinger check
 
-Use:
+If `https://your-domain/api/health` returns Hostinger's default "This Page Does Not Exist" HTML page, the domain is not reaching the Node.js app. In that case:
 
-```bash
-npm start
-```
-
-The Node.js server serves both the built frontend and the `/api` routes.
+- make sure the domain is attached to the Node.js Web App, not only a static website deployment
+- make sure the app start command is `npm start`
+- if the root domain is staying on a static Vite deployment, deploy the Express server separately on `api.codeyourcareer.my.id`
 
 ## 7. Verify
 
+- `https://your-domain/api/health` returns JSON.
 - Public landing page loads.
 - `/adminpanel` shows the login form.
 - Admin login works with the seeded credentials.
