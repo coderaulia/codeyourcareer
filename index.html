@@ -1,143 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Security meta tags -->
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com https://gloejpacnqxvxcmgtiwr.supabase.co https://*.supabase.co; img-src 'self' data: https: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net text/css https://fonts.googleapis.com;">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    <title>CodeYourCareer | Build The Future</title>
-    <link rel="icon" type="image/png" href="cyc-logo.png">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob: ws: wss:; img-src 'self' data: https: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://*.supabase.co ws: wss:;">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>CodeYourCareer | Build The Future</title>
+  <link rel="icon" type="image/png" href="/cyc-logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-
 <body>
-    <div class="container-narrow text-center">
-        <div id="home" class="section-view active">
-            <header class="brand-header fade-in-up">
-                <div id="site-logo">
-                    <svg class="logo-svg" viewBox="0 0 100 100" fill="none">
-                        <rect x="5" y="5" width="90" height="90" rx="20" fill="black" />
-                        <path d="M35 30 L25 50 L35 70" stroke="white" stroke-width="6" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                        <path d="M65 30 L75 50 L65 70" stroke="white" stroke-width="6" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                        <path d="M50 65 L50 35 M50 35 L40 45 M50 35 L60 45" stroke="white" stroke-width="6"
-                            stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </div>
-                <div id="site-name" class="fw-bold">CodeYourCareer.my.id</div>
-            </header>
-
-            <section class="mb-5 mt-5 fade-in-up">
-                <h1 id="site-headline" class="headline">Welcome to CodeYourCareer</h1>
-                <p id="site-subheadline" class="subheadline mb-5">Every career has a code — and once you learn to decode
-                    it, you can build the future you want.</p>
-            </section>
-
-            <main class="fade-in-up">
-                <div id="dynamic-links" class="d-flex flex-column gap-2 text-start">
-                    <div class="text-muted small text-center py-3">Loading...</div>
-                </div>
-            </main>
-
-            <!-- Testimonials Module -->
-            <section id="testimonials-section" class="module-section fade-in-up" style="display:none">
-                <h3 class="fw-bold mb-3 text-start">What People Say</h3>
-                <div id="testimonials-list"></div>
-            </section>
-
-            <!-- CTA / Consultation Module -->
-            <section id="cta-section" class="consult-section fade-in-up" style="display:none">
-                <h3 id="cta-title" class="fw-bold mb-2">Ready to debug your career?</h3>
-                <p id="cta-subtitle" class="small mb-3">1:1 Session for Students, Job Seekers & Professionals.</p>
-                <button id="cta-button" onclick="navigateTo('consultation')" class="btn-cta">Mulai Konsultasi Karir
-                    Sekarang!</button>
-            </section>
-
-            <!-- Contact Module -->
-            <section id="contact-home-section" class="module-section fade-in-up" style="display:none">
-                <div class="consult-section" style="background: var(--accent);">
-                    <h3 class="fw-bold mb-2">Get in Touch</h3>
-                    <p class="small mb-3" style="opacity:0.7">Have a question? Send me a message!</p>
-                    <button onclick="navigateTo('contact')" class="btn-cta">Send a Message</button>
-                </div>
-            </section>
-
-            <footer id="site-footer" class="footer fade-in-up mt-5">
-                <p>© 2026 CodeYourCareer. All rights reserved.</p>
-            </footer>
+  <div class="container-narrow text-center">
+    <div id="home" class="section-view active">
+      <header class="brand-header fade-in-up">
+        <div id="site-logo">
+          <svg class="logo-svg" viewBox="0 0 100 100" fill="none">
+            <rect x="5" y="5" width="90" height="90" rx="20" fill="black" />
+            <path d="M35 30 L25 50 L35 70" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M65 30 L75 50 L65 70" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M50 65 L50 35 M50 35 L40 45 M50 35 L60 45" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </div>
+        <div id="site-name" class="fw-bold">CodeYourCareer.my.id</div>
+      </header>
 
-        <!-- Consultation Page -->
-        <div id="consultation" class="section-view text-start">
-            <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">← Back</button>
-            <h2 class="fw-bold">Book a Session</h2>
-            <form id="bookingForm" onsubmit="handleFormSubmit(event)">
-                <input type="text" id="hp_field" style="display:none" tabindex="-1" autocomplete="off">
-                <div class="mb-3"><label class="form-label small fw-bold">NAME</label><input type="text" id="name"
-                        class="form-control" placeholder="Your Name" required minlength="2" maxlength="100"
-                        pattern="[a-zA-Z\s.-]+"></div>
-                <div class="mb-3"><label class="form-label small fw-bold">EMAIL</label><input type="email" id="email"
-                        class="form-control" placeholder="you@example.com" required maxlength="150"></div>
-                <div class="mb-3"><label class="form-label small fw-bold">SCHEDULED DATE & TIME</label><input
-                        type="datetime-local" id="schedule" class="form-control" required></div>
-                <div class="mb-4"><label class="form-label small fw-bold">TOPIC</label>
-                    <select id="topic" class="form-select" required>
-                        <option value="" disabled selected>Select a topic</option>
-                        <option value="CV Review">CV Review</option>
-                        <option value="Interview Prep">Interview Prep</option>
-                        <option value="LinkedIn Hacks">LinkedIn Hacks</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Submit Request</button>
-            </form>
-        </div>
+      <section class="mb-5 mt-5 fade-in-up">
+        <h1 id="site-headline" class="headline">Welcome to CodeYourCareer</h1>
+        <p id="site-subheadline" class="subheadline mb-5">Every career has a code, and once you learn to decode it, you can build the future you want.</p>
+      </section>
 
-        <!-- Contact Page -->
-        <div id="contact" class="section-view text-start">
-            <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">← Back</button>
-            <h2 class="fw-bold mb-4">Contact Me</h2>
-            <form onsubmit="handleContactSubmit(event)">
-                <input type="text" id="hp_contact" style="display:none" tabindex="-1" autocomplete="off">
-                <div class="mb-3"><label class="form-label small fw-bold">NAME</label><input type="text"
-                        id="contact-name" class="form-control" placeholder="Your Name" required minlength="2"
-                        maxlength="100"></div>
-                <div class="mb-3"><label class="form-label small fw-bold">EMAIL</label><input type="email"
-                        id="contact-email" class="form-control" placeholder="you@example.com" required maxlength="150">
-                </div>
-                <div class="mb-4"><label class="form-label small fw-bold">MESSAGE</label><textarea id="contact-message"
-                        class="form-control" rows="4" placeholder="Your message..." required minlength="10"
-                        maxlength="1000"></textarea></div>
-                <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Send Message</button>
-            </form>
+      <main class="fade-in-up">
+        <div id="dynamic-links" class="d-flex flex-column gap-2 text-start">
+          <div class="text-muted small text-center py-3">Loading...</div>
         </div>
+      </main>
 
-        <div id="freebies" class="section-view text-start">
-            <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">← Back</button>
-            <h2 class="fw-bold mb-4">Freebies & Templates</h2>
-            <div id="freebies-list"></div>
-        </div>
+      <section id="testimonials-section" class="module-section fade-in-up" style="display:none">
+        <h3 class="fw-bold mb-3 text-start">What People Say</h3>
+        <div id="testimonials-list"></div>
+      </section>
 
-        <div id="gear" class="section-view text-start">
-            <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">← Back</button>
-            <h2 class="fw-bold mb-4">Tech & WFH Gear</h2>
-            <div id="gear-list"></div>
+      <section id="cta-section" class="consult-section fade-in-up" style="display:none">
+        <h3 id="cta-title" class="fw-bold mb-2">Ready to debug your career?</h3>
+        <p id="cta-subtitle" class="small mb-3">1:1 Session for Students, Job Seekers and Professionals.</p>
+        <button id="cta-button" onclick="navigateTo('consultation')" class="btn-cta">Start Your Career Consultation</button>
+      </section>
+
+      <section id="contact-home-section" class="module-section fade-in-up" style="display:none">
+        <div class="consult-section" style="background: var(--accent);">
+          <h3 class="fw-bold mb-2">Get in Touch</h3>
+          <p class="small mb-3" style="opacity:0.7">Have a question? Send me a message!</p>
+          <button onclick="navigateTo('contact')" class="btn-cta">Send a Message</button>
         </div>
+      </section>
+
+      <footer id="site-footer" class="footer fade-in-up mt-5">
+        <p>&copy; 2026 CodeYourCareer. All rights reserved.</p>
+      </footer>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-    <script src="supabase-config.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/public.js"></script>
-</body>
+    <div id="consultation" class="section-view text-start">
+      <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">&larr; Back</button>
+      <h2 class="fw-bold">Book a Session</h2>
+      <form id="bookingForm" onsubmit="handleFormSubmit(event)">
+        <input type="text" id="hp_field" style="display:none" tabindex="-1" autocomplete="off">
+        <div class="mb-3"><label class="form-label small fw-bold">NAME</label><input type="text" id="name" class="form-control" placeholder="Your Name" required minlength="2" maxlength="100" pattern="[a-zA-Z\s.-]+"></div>
+        <div class="mb-3"><label class="form-label small fw-bold">EMAIL</label><input type="email" id="email" class="form-control" placeholder="you@example.com" required maxlength="150"></div>
+        <div class="mb-3"><label class="form-label small fw-bold">SCHEDULED DATE AND TIME</label><input type="datetime-local" id="schedule" class="form-control" required></div>
+        <div class="mb-4"><label class="form-label small fw-bold">TOPIC</label>
+          <select id="topic" class="form-select" required>
+            <option value="" disabled selected>Select a topic</option>
+            <option value="CV Review">CV Review</option>
+            <option value="Interview Prep">Interview Prep</option>
+            <option value="LinkedIn Hacks">LinkedIn Hacks</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Submit Request</button>
+      </form>
+    </div>
 
+    <div id="contact" class="section-view text-start">
+      <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">&larr; Back</button>
+      <h2 class="fw-bold mb-4">Contact Me</h2>
+      <form onsubmit="handleContactSubmit(event)">
+        <input type="text" id="hp_contact" style="display:none" tabindex="-1" autocomplete="off">
+        <div class="mb-3"><label class="form-label small fw-bold">NAME</label><input type="text" id="contact-name" class="form-control" placeholder="Your Name" required minlength="2" maxlength="100"></div>
+        <div class="mb-3"><label class="form-label small fw-bold">EMAIL</label><input type="email" id="contact-email" class="form-control" placeholder="you@example.com" required maxlength="150"></div>
+        <div class="mb-4"><label class="form-label small fw-bold">MESSAGE</label><textarea id="contact-message" class="form-control" rows="4" placeholder="Your message..." required minlength="10" maxlength="1000"></textarea></div>
+        <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold">Send Message</button>
+      </form>
+    </div>
+
+    <div id="freebies" class="section-view text-start">
+      <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">&larr; Back</button>
+      <h2 class="fw-bold mb-4">Freebies and Templates</h2>
+      <div id="freebies-list"></div>
+    </div>
+
+    <div id="gear" class="section-view text-start">
+      <button class="btn btn-sm btn-outline-dark mb-4" onclick="navigateTo('home')">&larr; Back</button>
+      <h2 class="fw-bold mb-4">Tech and WFH Gear</h2>
+      <div id="gear-list"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
 </html>
