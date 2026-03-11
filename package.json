@@ -1,20 +1,29 @@
 {
   "name": "codeyourcareer",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "node --watch server/index.js",
+    "dev:full": "concurrently \"npm:dev:api\" \"npm:dev\"",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server/index.js",
+    "seed:admin": "node server/scripts/seed-admin.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.8",
     "animejs": "^3.2.2",
+    "bcryptjs": "^2.4.3",
     "bootstrap": "^5.3.3",
-    "bootstrap-icons": "^1.11.3"
+    "bootstrap-icons": "^1.11.3",
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mysql2": "^3.14.1"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "vite": "^6.2.1"
   }
 }

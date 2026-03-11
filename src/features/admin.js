@@ -1,9 +1,26 @@
-import { requireSupabase } from '../shared/supabase.js';
+import {
+  deleteBooking,
+  deleteContactMessage,
+  deleteLink as deleteLinkData,
+  deleteResource,
+  deleteTestimonial as deleteTestimonialData,
+  getAllLinks,
+  getBookings,
+  getContactMessages,
+  getDashboardStats,
+  getModules,
+  getRecentLinkClicks,
+  getResources,
+  getSiteSettings,
+  getTestimonials,
+  saveLink as saveLinkData,
+  saveResource as saveResourceData,
+  saveTestimonial as saveTestimonialData,
+  updateBookingConfirmation,
+  updateModuleStatus,
+  updateSiteSettings,
+} from '../api/data.js';
 import { escapeHtml, formatDate } from '../shared/utils.js';
-
-function getClient() {
-  return requireSupabase();
-}
 
 export function switchAdminTab(button, tabName) {
   document.querySelectorAll('.admin-tab-panel').forEach((panel) => {
@@ -27,54 +44,29 @@ export function initAdmin() {
 }
 
 export async function refreshDashboard() {
-  const client = getClient();
+  const stats = await getDashboardStats();
+  const statLinks = document.getElementById('stat-links');
+  const statBookings = document.getElementById('stat-bookings');
+  const statMessages = document.getElementById('stat-messages');
+  const statClicks = document.getElementById('stat-clicks');
 
-  client.from('links').select('id', { count: 'exact' }).then(({ count }) => {
-    const element = document.getElementById('stat-links');
-    if (element) {
-      element.textContent = count !== null ? count : 0;
-    }
-  });
-
-  client
-    .from('bookings')
-    .select('id', { count: 'exact' })
-    .eq('status', 'pending')
-    .then(({ count }) => {
-      const element = document.getElementById('stat-bookings');
-      if (element) {
-        element.textContent = count !== null ? count : 0;
-      }
-    });
-
-  client
-    .from('contact_messages')
-    .select('id', { count: 'exact' })
-    .eq('is_read', false)
-    .then(({ count }) => {
-      const element = document.getElementById('stat-messages');
-      if (element) {
-        element.textContent = count !== null ? count : 0;
-      }
-    });
-
-  client.from('link_clicks').select('id', { count: 'exact' }).then(({ count }) => {
-    const element = document.getElementById('stat-clicks');
-    if (element) {
-      element.textContent = count !== null ? count : 0;
-    }
-  });
+  if (statLinks) {
+    statLinks.textContent = stats.links;
+  }
+  if (statBookings) {
+    statBookings.textContent = stats.bookings;
+  }
+  if (statMessages) {
+    statMessages.textContent = stats.messages;
+  }
+  if (statClicks) {
+    statClicks.textContent = stats.clicks;
+  }
 }
 
 export async function loadSiteSettingsAdmin() {
   try {
-    const client = getClient();
-    const { data } = await client
-      .from('site_settings')
-      .select('*')
-      .eq('id', 1)
-      .single();
-
+    const data = await getSiteSettings();
     if (!data) {
       return;
     }
@@ -114,7 +106,6 @@ export async function loadSiteSettingsAdmin() {
 }
 
 export async function saveSiteSettings() {
-  const client = getClient();
   const getValue = (id) => document.getElementById(id)?.value || '';
 
   const payload = {
@@ -142,10 +133,7 @@ export async function saveSiteSettings() {
   };
 
   try {
-    const { error } = await client.from('site_settings').update(payload).eq('id', 1);
-    if (error) {
-      throw error;
-    }
+    await updateSiteSettings(payload);
     alert('Settings saved!');
   } catch (error) {
     alert(`Failed: ${error.message}`);
@@ -187,11 +175,7 @@ export async function refreshModulesAdmin() {
   }
 
   try {
-    const client = getClient();
-    const { data } = await client.from('modules').select('*').order('display_order');
-    if (!data) {
-      return;
-    }
+    const data = await getModules();
 
     container.innerHTML = data
       .map(
@@ -217,11 +201,7 @@ export async function refreshModulesAdmin() {
         ? activeModules
             .map(
               (moduleItem) =>
-                `<div class="d-flex align-items-center small border p-2 rounded bg-light"><i class="bi ${escapeHtml(
-                  moduleItem.icon
-                )} me-2 text-primary"></i><span class="fw-bold">${escapeHtml(
-                  moduleItem.name
-                )}</span></div>`
+                `<div class="d-flex align-items-center small border p-2 rounded bg-light"><i class="bi ${escapeHtml(moduleItem.icon)} me-2 text-primary"></i><span class="fw-bold">${escapeHtml(moduleItem.name)}</span></div>`
             )
             .join('')
         : '<div class="text-muted small">No active modules.</div>';
@@ -249,11 +229,7 @@ export async function refreshModulesAdmin() {
 
 export async function toggleModule(slug, enabled) {
   try {
-    const client = getClient();
-    const { error } = await client.from('modules').update({ is_enabled: enabled }).eq('slug', slug);
-    if (error) {
-      throw error;
-    }
+    await updateModuleStatus(slug, enabled);
     refreshModulesAdmin();
   } catch (error) {
     alert(`Failed: ${error.message}`);
@@ -269,11 +245,7 @@ export async function refreshAdminLinks() {
   listElement.innerHTML = '<small class="text-muted">Loading...</small>';
 
   try {
-    const client = getClient();
-    const { data, error } = await client.from('links').select('*').order('display_order');
-    if (error) {
-      throw error;
-    }
+    const data = await getAllLinks();
 
     listElement.innerHTML = data && data.length
       ? data
@@ -282,14 +254,7 @@ export async function refreshAdminLinks() {
               ? '<span class="badge bg-success" style="font-size:0.6rem">ON</span>'
               : '<span class="badge bg-secondary" style="font-size:0.6rem">OFF</span>';
             const typeIcon = link.link_type === 'external' ? 'bi-box-arrow-up-right' : 'bi-folder2-open';
-            return `<div class="d-flex justify-content-between align-items-center border-bottom py-2 small"><div><i class="bi ${typeIcon} me-1"></i><strong>${escapeHtml(
-              link.title
-            )}</strong> ${badge}<div class="text-muted" style="font-size:0.7rem">${escapeHtml(
-              link.url
-            )}</div></div><div><button class="btn btn-link p-0 me-2" onclick='editLink(${JSON.stringify(link).replace(
-              /'/g,
-              '&#39;'
-            )})'>Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteLink('${link.id}')">Del</button></div></div>`;
+            return `<div class="d-flex justify-content-between align-items-center border-bottom py-2 small"><div><i class="bi ${typeIcon} me-1"></i><strong>${escapeHtml(link.title)}</strong> ${badge}<div class="text-muted" style="font-size:0.7rem">${escapeHtml(link.url)}</div></div><div><button class="btn btn-link p-0 me-2" onclick='editLink(${JSON.stringify(link).replace(/'/g, '&#39;')})'>Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteLink('${link.id}')">Del</button></div></div>`;
           })
           .join('')
       : '<small class="text-muted">No links.</small>';
@@ -317,16 +282,11 @@ export async function saveLink(event) {
   };
 
   try {
-    const client = getClient();
-    const { error } = id
-      ? await client.from('links').update(payload).eq('id', id)
-      : await client.from('links').insert([payload]);
-    if (error) {
-      throw error;
-    }
+    await saveLinkData(id || null, payload);
     resetLinkForm();
     event.target.reset();
     refreshAdminLinks();
+    refreshDashboard();
   } catch (error) {
     alert(`Failed: ${error.message}`);
   } finally {
@@ -354,11 +314,10 @@ export async function deleteLink(id) {
     return;
   }
 
-  const client = getClient();
-  await client.from('links').delete().eq('id', id);
+  await deleteLinkData(id);
   refreshAdminLinks();
+  refreshDashboard();
 }
-
 export function resetLinkForm() {
   document.getElementById('link-id').value = '';
   document.getElementById('link-active').checked = true;
@@ -381,19 +340,12 @@ export async function refreshResources() {
     listElement.innerHTML = '<small class="text-muted">Loading...</small>';
 
     try {
-      const client = getClient();
-      const { data } = await client.from(table).select('*').order('display_order');
+      const data = await getResources(table);
       listElement.innerHTML = data && data.length
         ? data
             .map(
               (item) =>
-                `<div class="d-flex justify-content-between border-bottom py-2 small"><span>${escapeHtml(
-                  item.title
-                )}</span><div><button class="btn btn-link p-0 me-2" onclick="editItem('${table}', ${JSON.stringify(
-                  item
-                ).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteItem('${table}','${
-                  item.id
-                }')">Del</button></div></div>`
+                `<div class="d-flex justify-content-between border-bottom py-2 small"><span>${escapeHtml(item.title)}</span><div><button class="btn btn-link p-0 me-2" onclick="editItem('${table}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteItem('${table}','${item.id}')">Del</button></div></div>`
             )
             .join('')
         : '<small class="text-muted">Empty</small>';
@@ -414,6 +366,7 @@ export async function saveResource(event) {
   const payload = {
     title: document.getElementById('form-title').value,
     link: document.getElementById('form-link').value,
+    display_order: 0,
   };
 
   if (table === 'freebies') {
@@ -423,13 +376,7 @@ export async function saveResource(event) {
   }
 
   try {
-    const client = getClient();
-    const { error } = id
-      ? await client.from(table).update(payload).eq('id', id)
-      : await client.from(table).insert([payload]);
-    if (error) {
-      throw error;
-    }
+    await saveResourceData(table, id || null, payload);
     document.getElementById('form-id').value = '';
     event.target.reset();
     refreshResources();
@@ -454,15 +401,15 @@ export async function deleteItem(table, id) {
     return;
   }
 
-  const client = getClient();
-  await client.from(table).delete().eq('id', id);
   if (table === 'bookings') {
+    await deleteBooking(id);
     refreshBookings();
     refreshDashboard();
     return;
   }
+
+  await deleteResource(table, id);
   refreshResources();
-  refreshBookings();
 }
 
 export async function refreshBookings() {
@@ -474,8 +421,7 @@ export async function refreshBookings() {
   listElement.innerHTML = '<small class="text-muted">Loading...</small>';
 
   try {
-    const client = getClient();
-    const { data } = await client.from('bookings').select('*').order('created_at', { ascending: false });
+    const data = await getBookings();
 
     if (!data || !data.length) {
       listElement.innerHTML = '<small class="text-muted">No bookings.</small>';
@@ -485,24 +431,10 @@ export async function refreshBookings() {
     listElement.innerHTML = data
       .map((booking) => {
         const meetAction = booking.meetlink
-          ? `<a href="${escapeHtml(
-              booking.meetlink
-            )}" target="_blank" rel="noreferrer" class="btn btn-sm btn-success fw-bold" style="font-size:0.7rem"><i class="bi bi-camera-video"></i> Meet</a>`
-          : `<button class="btn btn-sm btn-outline-dark" style="font-size:0.7rem" onclick="confirmBooking('${
-              booking.id
-            }','${escapeHtml(booking.name)}','${escapeHtml(booking.email)}','${escapeHtml(
-              booking.topic
-            )}','${booking.schedule}')"><i class="bi bi-check-lg"></i> Confirm</button>`;
+          ? `<a href="${escapeHtml(booking.meetlink)}" target="_blank" rel="noreferrer" class="btn btn-sm btn-success fw-bold" style="font-size:0.7rem"><i class="bi bi-camera-video"></i> Meet</a>`
+          : `<button class="btn btn-sm btn-outline-dark" style="font-size:0.7rem" onclick="confirmBooking('${booking.id}','${escapeHtml(booking.name)}')"><i class="bi bi-check-lg"></i> Confirm</button>`;
 
-        return `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between align-items-center"><div><strong>${escapeHtml(
-          booking.name
-        )}</strong> <span class="badge bg-light text-dark border">${escapeHtml(
-          booking.topic
-        )}</span><div class="text-muted">${formatDate(booking.schedule)} · ${escapeHtml(
-          booking.email
-        )}</div></div><div class="d-flex flex-column gap-1 text-end">${meetAction}<button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteItem('bookings','${
-          booking.id
-        }')">Del</button></div></div></div>`;
+        return `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between align-items-center"><div><strong>${escapeHtml(booking.name)}</strong> <span class="badge bg-light text-dark border">${escapeHtml(booking.topic)}</span><div class="text-muted">${formatDate(booking.schedule)} · ${escapeHtml(booking.email)}</div></div><div class="d-flex flex-column gap-1 text-end">${meetAction}<button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteItem('bookings','${booking.id}')">Del</button></div></div></div>`;
       })
       .join('');
   } catch {
@@ -510,22 +442,21 @@ export async function refreshBookings() {
   }
 }
 
-export async function confirmBooking(id, name, email, topic, schedule) {
+export async function confirmBooking(id, name) {
   const meetLink = window.prompt(`Enter Meet link for ${name}:`, 'https://meet.google.com/');
   if (!meetLink) {
     return;
   }
 
   try {
-    const client = getClient();
-    await client.from('bookings').update({ meetlink: meetLink, status: 'confirmed' }).eq('id', id);
+    await updateBookingConfirmation(id, meetLink);
     alert('Confirmed!');
     refreshBookings();
+    refreshDashboard();
   } catch {
     alert('Failed');
   }
 }
-
 export async function refreshTestimonials() {
   const listElement = document.getElementById('list-testimonials');
   if (!listElement) {
@@ -533,21 +464,12 @@ export async function refreshTestimonials() {
   }
 
   try {
-    const client = getClient();
-    const { data } = await client.from('testimonials').select('*').order('display_order');
+    const data = await getTestimonials();
     listElement.innerHTML = data && data.length
       ? data
           .map(
             (testimonial) =>
-              `<div class="d-flex justify-content-between border-bottom py-2 small"><div><strong>${escapeHtml(
-                testimonial.name
-              )}</strong> ${'&#9733;'.repeat(testimonial.rating)}<div class="text-muted">${escapeHtml(
-                testimonial.content
-              ).substring(0, 60)}...</div></div><div><button class="btn btn-link p-0 me-2" onclick="editTestimonial(${JSON.stringify(
-                testimonial
-              ).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteTestimonial('${
-                testimonial.id
-              }')">Del</button></div></div>`
+              `<div class="d-flex justify-content-between border-bottom py-2 small"><div><strong>${escapeHtml(testimonial.name)}</strong> ${'&#9733;'.repeat(testimonial.rating)}<div class="text-muted">${escapeHtml(testimonial.content).substring(0, 60)}...</div></div><div><button class="btn btn-link p-0 me-2" onclick="editTestimonial(${JSON.stringify(testimonial).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteTestimonial('${testimonial.id}')">Del</button></div></div>`
           )
           .join('')
       : '<small class="text-muted">No testimonials.</small>';
@@ -563,16 +485,12 @@ export async function saveTestimonial(event) {
     role: document.getElementById('testi-role').value,
     content: document.getElementById('testi-content').value,
     rating: Number.parseInt(document.getElementById('testi-rating').value, 10),
+    is_featured: true,
+    display_order: 0,
   };
 
   try {
-    const client = getClient();
-    const { error } = id
-      ? await client.from('testimonials').update(payload).eq('id', id)
-      : await client.from('testimonials').insert([payload]);
-    if (error) {
-      throw error;
-    }
+    await saveTestimonialData(id || null, payload);
     document.getElementById('testi-id').value = '';
     event.target.reset();
     refreshTestimonials();
@@ -594,8 +512,7 @@ export async function deleteTestimonial(id) {
     return;
   }
 
-  const client = getClient();
-  await client.from('testimonials').delete().eq('id', id);
+  await deleteTestimonialData(id);
   refreshTestimonials();
 }
 
@@ -606,25 +523,12 @@ export async function refreshMessages() {
   }
 
   try {
-    const client = getClient();
-    const { data } = await client
-      .from('contact_messages')
-      .select('*')
-      .order('created_at', { ascending: false });
-
+    const data = await getContactMessages();
     listElement.innerHTML = data && data.length
       ? data
           .map(
             (message) =>
-              `<div class="border-bottom py-2 small ${message.is_read ? '' : 'fw-bold'}"><div class="d-flex justify-content-between"><div><strong>${escapeHtml(
-                message.name
-              )}</strong> <span class="text-muted">${escapeHtml(message.email)}</span><div>${escapeHtml(
-                message.message
-              )}</div><div class="text-muted" style="font-size:0.7rem">${formatDate(
-                message.created_at
-              )}</div></div><div><button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteMessage('${
-                message.id
-              }')">Del</button></div></div></div>`
+              `<div class="border-bottom py-2 small ${message.is_read ? '' : 'fw-bold'}"><div class="d-flex justify-content-between"><div><strong>${escapeHtml(message.name)}</strong> <span class="text-muted">${escapeHtml(message.email)}</span><div>${escapeHtml(message.message)}</div><div class="text-muted" style="font-size:0.7rem">${formatDate(message.created_at)}</div></div><div><button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteMessage('${message.id}')">Del</button></div></div></div>`
           )
           .join('')
       : '<small class="text-muted">No messages.</small>';
@@ -637,9 +541,9 @@ export async function deleteMessage(id) {
     return;
   }
 
-  const client = getClient();
-  await client.from('contact_messages').delete().eq('id', id);
+  await deleteContactMessage(id);
   refreshMessages();
+  refreshDashboard();
 }
 
 export async function loadAnalytics() {
@@ -649,12 +553,7 @@ export async function loadAnalytics() {
   }
 
   try {
-    const client = getClient();
-    const { data } = await client
-      .from('link_clicks')
-      .select('link_title, clicked_at')
-      .order('clicked_at', { ascending: false })
-      .limit(100);
+    const data = await getRecentLinkClicks();
 
     if (!data || !data.length) {
       analyticsElement.innerHTML = '<small class="text-muted">No click data yet.</small>';
@@ -674,9 +573,7 @@ export async function loadAnalytics() {
       sortedCounts
         .map(([title, count]) => {
           const percentage = Math.round((count / data.length) * 100);
-          return `<div class="mb-2"><div class="d-flex justify-content-between small"><span>${escapeHtml(
-            title
-          )}</span><strong>${count}</strong></div><div class="progress" style="height:6px"><div class="progress-bar bg-dark" style="width:${percentage}%"></div></div></div>`;
+          return `<div class="mb-2"><div class="d-flex justify-content-between small"><span>${escapeHtml(title)}</span><strong>${count}</strong></div><div class="progress" style="height:6px"><div class="progress-bar bg-dark" style="width:${percentage}%"></div></div></div>`;
         })
         .join('') +
       `<div class="text-muted small mt-3">Total clicks tracked: ${data.length}</div>`;

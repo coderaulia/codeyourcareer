@@ -1,4 +1,4 @@
-import { requireSupabase } from '../shared/supabase.js';
+import { getCurrentUser, getSession, loginWithPassword, logout } from '../api/auth.js';
 import { initAdmin } from './admin.js';
 
 function showLoginGate() {
@@ -17,16 +17,14 @@ export async function checkAdminSession() {
   }
 
   try {
-    const client = requireSupabase();
-    const { data, error } = await client.auth.getSession();
-    if (error || !data.session) {
+    const session = await getSession();
+    if (!session?.authenticated) {
       showLoginGate();
       return;
     }
 
-    const { data: userData, error: userError } = await client.auth.getUser();
-    if (userError || !userData.user) {
-      await client.auth.signOut();
+    const user = await getCurrentUser();
+    if (!user) {
       showLoginGate();
       return;
     }
@@ -50,10 +48,9 @@ export async function adminLogin() {
   }
 
   try {
-    const client = requireSupabase();
-    const { data, error } = await client.auth.signInWithPassword({ email: user, password: pass });
-    if (error || !data.session) {
-      throw error || new Error('Invalid credentials');
+    const session = await loginWithPassword(user, pass);
+    if (!session?.authenticated) {
+      throw new Error('Invalid credentials');
     }
 
     showDashboard();
@@ -70,8 +67,7 @@ export async function adminLogin() {
 
 export async function adminLogout() {
   try {
-    const client = requireSupabase();
-    await client.auth.signOut();
+    await logout();
   } finally {
     showLoginGate();
     window.location.reload();

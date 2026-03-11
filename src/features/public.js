@@ -1,17 +1,20 @@
+import {
+  createBooking,
+  createContactMessage,
+  getActiveLinks,
+  getFeaturedTestimonials,
+  getModules,
+  getResources,
+  getSiteSettings,
+  recordLinkClick,
+} from '../api/data.js';
 import { MODULES } from '../shared/modules.js';
-import { getSupabaseClient, requireSupabase } from '../shared/supabase.js';
 import { escapeHtml, navigateTo } from '../shared/utils.js';
 
 export async function loadSiteSettings() {
   try {
-    const client = requireSupabase();
-    const { data, error } = await client
-      .from('site_settings')
-      .select('*')
-      .eq('id', 1)
-      .single();
-
-    if (error || !data) {
+    const data = await getSiteSettings();
+    if (!data) {
       return;
     }
 
@@ -52,9 +55,7 @@ function applyContent(settings) {
   }
 
   if (getById('site-footer')) {
-    getById('site-footer').innerHTML = `<p>${escapeHtml(
-      settings.footer_text || ''
-    )}</p>`;
+    getById('site-footer').innerHTML = `<p>${escapeHtml(settings.footer_text || '')}</p>`;
   }
 
   if (getById('cta-title')) {
@@ -75,16 +76,12 @@ function applyContent(settings) {
   }
 
   if (settings.logo_type === 'emoji') {
-    logoElement.innerHTML = `<div class="logo-emoji">${
-      escapeHtml(settings.logo_emoji) || '&#128187;'
-    }</div>`;
+    logoElement.innerHTML = `<div class="logo-emoji">${escapeHtml(settings.logo_emoji) || '&#128187;'}</div>`;
     return;
   }
 
   if (settings.logo_type === 'image' && settings.logo_image_url) {
-    logoElement.innerHTML = `<img class="logo-image" src="${escapeHtml(
-      settings.logo_image_url
-    )}" alt="Logo">`;
+    logoElement.innerHTML = `<img class="logo-image" src="${escapeHtml(settings.logo_image_url)}" alt="Logo">`;
     return;
   }
 
@@ -95,21 +92,13 @@ function applyContent(settings) {
 
 export async function loadModules() {
   try {
-    const client = requireSupabase();
-    const { data, error } = await client
-      .from('modules')
-      .select('*')
-      .order('display_order');
-
-    if (error || !data) {
-      return;
-    }
+    const modules = await getModules();
 
     Object.keys(MODULES).forEach((key) => {
       delete MODULES[key];
     });
 
-    data.forEach((moduleItem) => {
+    modules.forEach((moduleItem) => {
       MODULES[moduleItem.slug] = moduleItem.is_enabled;
     });
 
@@ -139,42 +128,24 @@ export async function loadLinks() {
   }
 
   try {
-    const client = requireSupabase();
-    const { data, error } = await client
-      .from('links')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order');
+    const links = await getActiveLinks();
 
-    if (error) {
-      throw error;
-    }
-
-    if (!data || !data.length) {
-      container.innerHTML =
-        '<div class="text-muted small text-center">No links yet.</div>';
+    if (!links || !links.length) {
+      container.innerHTML = '<div class="text-muted small text-center">No links yet.</div>';
       return;
     }
 
-    const externalLinks = data.filter((link) => link.link_type === 'external');
-    const internalLinks = data.filter((link) => link.link_type === 'internal');
+    const externalLinks = links.filter((link) => link.link_type === 'external');
+    const internalLinks = links.filter((link) => link.link_type === 'internal');
 
     let markup = '';
 
     externalLinks.forEach((link) => {
       const clickTrack = MODULES.analytics
-        ? `onclick="trackClick(${JSON.stringify(String(link.id))}, ${JSON.stringify(
-            link.title || ''
-          )}); return true;"`
+        ? `onclick="trackClick(${JSON.stringify(String(link.id))}, ${JSON.stringify(link.title || '')}); return true;"`
         : '';
 
-      markup += `<a href="${escapeHtml(
-        link.url
-      )}" target="_blank" rel="noreferrer" class="link-card" ${clickTrack}><span class="link-icon"><i class="bi ${escapeHtml(
-        link.icon
-      )}"></i></span><span class="link-text">${escapeHtml(
-        link.title
-      )}</span><i class="bi bi-arrow-right"></i></a>`;
+      markup += `<a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer" class="link-card" ${clickTrack}><span class="link-icon"><i class="bi ${escapeHtml(link.icon)}"></i></span><span class="link-text">${escapeHtml(link.title)}</span><i class="bi bi-arrow-right"></i></a>`;
     });
 
     if (externalLinks.length && internalLinks.length) {
@@ -182,26 +153,13 @@ export async function loadLinks() {
     }
 
     internalLinks.forEach((link) => {
-      const backgroundStyle = link.style_bg
-        ? `background-color:${escapeHtml(link.style_bg)};`
-        : '';
-      const icon =
-        link.internal_target === 'freebies'
-          ? 'bi-download'
-          : 'bi-box-arrow-up-right';
+      const backgroundStyle = link.style_bg ? `background-color:${escapeHtml(link.style_bg)};` : '';
+      const icon = link.internal_target === 'freebies' ? 'bi-download' : 'bi-box-arrow-up-right';
       const clickTrack = MODULES.analytics
-        ? `trackClick(${JSON.stringify(String(link.id))}, ${JSON.stringify(
-            link.title || ''
-          )}); `
+        ? `trackClick(${JSON.stringify(String(link.id))}, ${JSON.stringify(link.title || '')}); `
         : '';
 
-      markup += `<div onclick="${clickTrack}navigateTo(${JSON.stringify(
-        link.internal_target || ''
-      )})" class="link-card" style="${backgroundStyle}"><span class="link-icon"><i class="bi ${escapeHtml(
-        link.icon
-      )}"></i></span><span class="link-text">${escapeHtml(
-        link.title
-      )}</span><i class="bi ${icon}"></i></div>`;
+      markup += `<div onclick="${clickTrack}navigateTo(${JSON.stringify(link.internal_target || '')})" class="link-card" style="${backgroundStyle}"><span class="link-icon"><i class="bi ${escapeHtml(link.icon)}"></i></span><span class="link-text">${escapeHtml(link.title)}</span><i class="bi ${icon}"></i></div>`;
     });
 
     container.innerHTML = markup;
@@ -216,38 +174,21 @@ export async function fetchResources(table, containerId) {
     return;
   }
 
-  container.innerHTML =
-    '<div class="text-muted small text-center py-4">Loading...</div>';
+  container.innerHTML = '<div class="text-muted small text-center py-4">Loading...</div>';
 
   try {
-    const client = requireSupabase();
-    const { data, error } = await client
-      .from(table)
-      .select('*')
-      .order('display_order');
-
-    if (error) {
-      throw error;
-    }
-
+    const data = await getResources(table);
     container.innerHTML =
       data && data.length
         ? data
             .map(
               (item) =>
-                `<a href="${escapeHtml(
-                  item.link
-                )}" target="_blank" rel="noreferrer" class="link-card"><div><div class="fw-bold">${escapeHtml(
-                  item.title
-                )}</div><div class="small text-muted">${escapeHtml(
-                  item.description || item.category || ''
-                )}</div></div><i class="bi bi-box-arrow-up-right"></i></a>`
+                `<a href="${escapeHtml(item.link)}" target="_blank" rel="noreferrer" class="link-card"><div><div class="fw-bold">${escapeHtml(item.title)}</div><div class="small text-muted">${escapeHtml(item.description || item.category || '')}</div></div><i class="bi bi-box-arrow-up-right"></i></a>`
             )
             .join('')
         : '<div class="text-muted small text-center">No items found.</div>';
   } catch {
-    container.innerHTML =
-      '<div class="text-danger small text-center">Failed to load.</div>';
+    container.innerHTML = '<div class="text-danger small text-center">Failed to load.</div>';
   }
 }
 
@@ -263,19 +204,12 @@ export async function handleFormSubmit(event) {
   submitButton.innerText = 'Processing...';
 
   try {
-    const client = requireSupabase();
-    const { error } = await client.from('bookings').insert([
-      {
-        name: document.getElementById('name').value,
-        email: document.getElementById('email').value,
-        topic: document.getElementById('topic').value,
-        schedule: document.getElementById('schedule').value,
-      },
-    ]);
-
-    if (error) {
-      throw error;
-    }
+    await createBooking({
+      name: document.getElementById('name').value,
+      email: document.getElementById('email').value,
+      topic: document.getElementById('topic').value,
+      schedule: document.getElementById('schedule').value,
+    });
 
     alert('Success! Session booked.');
     navigateTo('home');
@@ -295,12 +229,7 @@ export async function loadTestimonials() {
   }
 
   try {
-    const client = requireSupabase();
-    const { data } = await client
-      .from('testimonials')
-      .select('*')
-      .eq('is_featured', true)
-      .order('display_order');
+    const data = await getFeaturedTestimonials();
 
     if (!data || !data.length) {
       const testimonialsSection = document.getElementById('testimonials-section');
@@ -313,17 +242,11 @@ export async function loadTestimonials() {
     container.innerHTML = data
       .map(
         (testimonial) =>
-          `<div class="testimonial-card"><div class="stars">${'&#9733;'.repeat(
-            testimonial.rating
-          )}${'&#9734;'.repeat(
+          `<div class="testimonial-card"><div class="stars">${'&#9733;'.repeat(testimonial.rating)}${'&#9734;'.repeat(
             5 - testimonial.rating
-          )}</div><div class="quote">"${escapeHtml(
-            testimonial.content
-          )}"</div><div class="author">${escapeHtml(testimonial.name)}</div>${
-            testimonial.role
-              ? `<div class="role">${escapeHtml(testimonial.role)}</div>`
-              : ''
-          }</div>`
+          )}</div><div class="quote">"${escapeHtml(testimonial.content)}"</div><div class="author">${escapeHtml(
+            testimonial.name
+          )}</div>${testimonial.role ? `<div class="role">${escapeHtml(testimonial.role)}</div>` : ''}</div>`
       )
       .join('');
   } catch {
@@ -342,18 +265,11 @@ export async function handleContactSubmit(event) {
   submitButton.innerText = 'Sending...';
 
   try {
-    const client = requireSupabase();
-    const { error } = await client.from('contact_messages').insert([
-      {
-        name: document.getElementById('contact-name').value,
-        email: document.getElementById('contact-email').value,
-        message: document.getElementById('contact-message').value,
-      },
-    ]);
-
-    if (error) {
-      throw error;
-    }
+    await createContactMessage({
+      name: document.getElementById('contact-name').value,
+      email: document.getElementById('contact-email').value,
+      message: document.getElementById('contact-message').value,
+    });
 
     alert('Message sent! Thank you.');
     navigateTo('home');
@@ -367,15 +283,7 @@ export async function handleContactSubmit(event) {
 }
 
 export function trackClick(linkId, title) {
-  const client = getSupabaseClient();
-  if (!client) {
-    return;
-  }
-
-  client
-    .from('link_clicks')
-    .insert([{ link_id: linkId, link_title: title }])
-    .then(() => {});
+  void recordLinkClick({ link_id: linkId, link_title: title });
 }
 
 export function initPublicPage() {
