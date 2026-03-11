@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cookieSession from 'cookie-session';
 import express from 'express';
+import { upsertAdminUser } from './admin-user.js';
 import { pingDatabase } from './db.js';
 import apiRouter from './routes/api.js';
 
@@ -20,6 +21,7 @@ const corsAllowedOrigins = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean)
 );
+const hasCrossOriginFrontend = corsAllowedOrigins.size > 0;
 
 if (!sessionSecret) {
   throw new Error('Missing SESSION_SECRET environment variable.');
@@ -54,7 +56,7 @@ app.use(
     name: 'cyc_admin_session',
     keys: [sessionSecret],
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: hasCrossOriginFrontend ? 'none' : 'lax',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 1000 * 60 * 60 * 24 * 7,
   })
@@ -117,6 +119,18 @@ app.use((error, _request, response, _next) => {
     error: error.message || 'Internal server error.',
   });
 });
+
+const adminEmail = process.env.ADMIN_EMAIL;
+const adminPassword = process.env.ADMIN_PASSWORD;
+if (adminEmail && adminPassword) {
+  void upsertAdminUser(adminEmail, adminPassword)
+    .then((result) => {
+      console.log(`${result.action === 'created' ? 'Created' : 'Updated'} admin user: ${result.email}`);
+    })
+    .catch((error) => {
+      console.error('Admin bootstrap failed:', error);
+    });
+}
 
 app.listen(port, () => {
   console.log(`CodeYourCareer server listening on port ${port}`);
