@@ -1,4 +1,5 @@
-import { getCurrentUser, getSession, loginWithPassword, logout } from '../api/auth.js';
+import { changePassword, getCurrentUser, getSession, loginWithPassword, logout } from '../api/auth.js';
+import { formatErrorMessage, setButtonBusy, showToast } from '../shared/utils.js';
 import { initAdmin } from './admin.js';
 
 function showLoginGate() {
@@ -30,44 +31,78 @@ export async function checkAdminSession() {
     }
 
     showDashboard();
-    initAdmin();
+    initAdmin(user);
   } catch {
     showLoginGate();
   }
 }
 
 export async function adminLogin() {
-  const user = document.getElementById('user').value;
-  const pass = document.getElementById('pass').value;
+  const user = document.getElementById('user')?.value?.trim() || '';
+  const pass = document.getElementById('pass')?.value || '';
   const submitButton =
     document.querySelector('#loginGate button[type="submit"]') ||
     document.querySelector('#loginGate button');
 
-  if (submitButton) {
-    submitButton.disabled = true;
-  }
+  setButtonBusy(submitButton, true, 'Signing in...');
 
   try {
     const session = await loginWithPassword(user, pass);
     if (!session?.authenticated) {
-      throw new Error('Invalid credentials');
+      throw new Error('Invalid email or password.');
     }
 
     showDashboard();
-    initAdmin();
+    initAdmin(session.user);
+    showToast('Welcome back. Your admin session is ready.', {
+      tone: 'success',
+      title: 'Signed in',
+    });
   } catch (error) {
     showLoginGate();
-    alert(`Access Denied: ${error.message || 'Invalid credentials'}`);
+    showToast(formatErrorMessage(error, 'Unable to sign in right now.'), {
+      tone: 'error',
+      title: 'Access denied',
+    });
   } finally {
-    if (submitButton) {
-      submitButton.disabled = false;
-    }
+    setButtonBusy(submitButton, false);
+  }
+}
+
+export async function submitPasswordChange(event) {
+  event.preventDefault();
+
+  const currentPassword = document.getElementById('current-password')?.value || '';
+  const newPassword = document.getElementById('new-password')?.value || '';
+  const confirmPassword = document.getElementById('confirm-password')?.value || '';
+  const submitButton = event.target.querySelector('button[type="submit"]');
+
+  setButtonBusy(submitButton, true, 'Updating password...');
+
+  try {
+    await changePassword(currentPassword, newPassword, confirmPassword);
+    event.target.reset();
+    showToast('Your admin password has been updated.', {
+      tone: 'success',
+      title: 'Password changed',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to update your password right now.'), {
+      tone: 'error',
+      title: 'Password update failed',
+    });
+  } finally {
+    setButtonBusy(submitButton, false);
   }
 }
 
 export async function adminLogout() {
   try {
     await logout();
+    showToast('You have been signed out.', {
+      tone: 'info',
+      title: 'Signed out',
+    });
   } finally {
     showLoginGate();
     window.location.reload();

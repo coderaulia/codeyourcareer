@@ -13,6 +13,7 @@ import {
   getResources,
   getSiteSettings,
   getTestimonials,
+  getVersionInfo,
   saveLink as saveLinkData,
   saveResource as saveResourceData,
   saveTestimonial as saveTestimonialData,
@@ -20,7 +21,166 @@ import {
   updateModuleStatus,
   updateSiteSettings,
 } from '../api/data.js';
-import { escapeHtml, formatDate } from '../shared/utils.js';
+import {
+  escapeHtml,
+  formatDate,
+  formatErrorMessage,
+  invalidateField,
+  setButtonBusy,
+  setElementState,
+  showToast,
+} from '../shared/utils.js';
+
+const adminState = {
+  currentUser: null,
+  version: null,
+  modules: [],
+  links: [],
+  resources: {
+    freebies: [],
+    gear: [],
+  },
+  bookings: [],
+  testimonials: [],
+  messages: [],
+};
+
+function getById(id) {
+  return document.getElementById(id);
+}
+
+function normalizeForCompare(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function setListState(id, title, message, tone = 'muted') {
+  setElementState(getById(id), {
+    tone,
+    title,
+    message,
+    compact: true,
+  });
+}
+
+function reportLoadFailure(context, error, id, fallbackTitle) {
+  console.error(`${context} failed`, error);
+  if (id) {
+    setListState(id, fallbackTitle, formatErrorMessage(error), 'error');
+  }
+}
+
+function updateHeaderContext() {
+  const versionElement = getById('deploy-version');
+  if (versionElement) {
+    if (!adminState.version) {
+      versionElement.textContent = 'Version unavailable';
+    } else {
+      versionElement.textContent = adminState.version.deployMarker
+        ? `${adminState.version.version} · ${adminState.version.deployMarker}`
+        : adminState.version.version;
+      versionElement.title = `Started ${formatDate(adminState.version.startedAt)}`;
+    }
+  }
+
+  const userElement = getById('admin-user-email');
+  if (userElement) {
+    userElement.textContent = adminState.currentUser?.email || 'Signed in';
+  }
+}
+
+function validateLinkPayload(payload, id = '') {
+  if (!payload.title) {
+    invalidateField('link-title', 'Link title is required.');
+  }
+
+  if (!payload.url) {
+    invalidateField('link-url', 'Link URL is required.');
+  }
+
+  if (payload.link_type === 'internal' && !payload.internal_target) {
+    invalidateField('link-internal-target', 'Choose an internal target for internal links.');
+  }
+
+  const duplicateTitle = adminState.links.find(
+    (item) => item.id !== id && normalizeForCompare(item.title) === normalizeForCompare(payload.title)
+  );
+  if (duplicateTitle) {
+    invalidateField('link-title', 'A link with this title already exists.');
+  }
+
+  const duplicateUrl = adminState.links.find(
+    (item) => item.id !== id && normalizeForCompare(item.url) === normalizeForCompare(payload.url)
+  );
+  if (duplicateUrl) {
+    invalidateField('link-url', 'A link with this URL already exists.');
+  }
+}
+
+function validateResourcePayload(table, payload, id = '') {
+  if (!payload.title) {
+    invalidateField('form-title', 'Title is required.');
+  }
+
+  if (!payload.link) {
+    invalidateField('form-link', 'Link is required.');
+  }
+
+  const existingItems = adminState.resources[table] || [];
+  const duplicateTitle = existingItems.find(
+    (item) => item.id !== id && normalizeForCompare(item.title) === normalizeForCompare(payload.title)
+  );
+  if (duplicateTitle) {
+    invalidateField('form-title', 'An item with this title already exists.');
+  }
+
+  const duplicateUrl = existingItems.find(
+    (item) => item.id !== id && normalizeForCompare(item.link) === normalizeForCompare(payload.link)
+  );
+  if (duplicateUrl) {
+    invalidateField('form-link', 'An item with this link already exists.');
+  }
+}
+
+function validateTestimonialPayload(payload, id = '') {
+  if (!payload.name) {
+    invalidateField('testi-name', 'Name is required.');
+  }
+
+  if (!payload.content) {
+    invalidateField('testi-content', 'Testimonial content is required.');
+  }
+
+  const duplicateEntry = adminState.testimonials.find(
+    (item) =>
+      item.id !== id &&
+      normalizeForCompare(item.name) === normalizeForCompare(payload.name) &&
+      normalizeForCompare(item.content) === normalizeForCompare(payload.content)
+  );
+
+  if (duplicateEntry) {
+    invalidateField('testi-content', 'This testimonial already exists.');
+  }
+}
+
+function renderDashboardModules() {
+  const dashboardModules = getById('dashboard-active-modules');
+  if (!dashboardModules) {
+    return;
+  }
+
+  const activeModules = adminState.modules.filter((moduleItem) => moduleItem.is_enabled);
+  if (!activeModules.length) {
+    setListState('dashboard-active-modules', 'No active modules', 'Enable modules to make them live.', 'muted');
+    return;
+  }
+
+  dashboardModules.innerHTML = activeModules
+    .map(
+      (moduleItem) =>
+        `<div class="d-flex align-items-center small border p-2 rounded bg-light"><i class="bi ${escapeHtml(moduleItem.icon)} me-2 text-primary"></i><span class="fw-bold">${escapeHtml(moduleItem.name)}</span></div>`
+    )
+    .join('');
+}
 
 export function switchAdminTab(button, tabName) {
   document.querySelectorAll('.admin-tab-panel').forEach((panel) => {
@@ -30,37 +190,67 @@ export function switchAdminTab(button, tabName) {
     tab.classList.remove('active');
   });
 
-  document.getElementById(`tab-${tabName}`)?.classList.add('active');
+  getById(`tab-${tabName}`)?.classList.add('active');
   button?.classList.add('active');
 }
 
-export function initAdmin() {
-  refreshDashboard();
-  loadSiteSettingsAdmin();
-  refreshAdminLinks();
-  refreshResources();
-  refreshBookings();
-  refreshModulesAdmin();
+export function initAdmin(user = null) {
+  if (user) {
+    adminState.currentUser = user;
+  }
+
+  updateHeaderContext();
+  void refreshVersionInfo();
+  void refreshDashboard();
+  void loadSiteSettingsAdmin();
+  void refreshAdminLinks();
+  void refreshResources();
+  void refreshBookings();
+  void refreshModulesAdmin();
+}
+
+export async function refreshVersionInfo() {
+  try {
+    adminState.version = await getVersionInfo();
+  } catch (error) {
+    console.error('Version lookup failed', error);
+    adminState.version = null;
+  }
+
+  updateHeaderContext();
 }
 
 export async function refreshDashboard() {
-  const stats = await getDashboardStats();
-  const statLinks = document.getElementById('stat-links');
-  const statBookings = document.getElementById('stat-bookings');
-  const statMessages = document.getElementById('stat-messages');
-  const statClicks = document.getElementById('stat-clicks');
+  ['stat-links', 'stat-bookings', 'stat-messages', 'stat-clicks'].forEach((id) => {
+    const element = getById(id);
+    if (element) {
+      element.textContent = '...';
+    }
+  });
 
-  if (statLinks) {
-    statLinks.textContent = stats.links;
-  }
-  if (statBookings) {
-    statBookings.textContent = stats.bookings;
-  }
-  if (statMessages) {
-    statMessages.textContent = stats.messages;
-  }
-  if (statClicks) {
-    statClicks.textContent = stats.clicks;
+  try {
+    const stats = await getDashboardStats();
+    const statMap = {
+      'stat-links': stats.links,
+      'stat-bookings': stats.bookings,
+      'stat-messages': stats.messages,
+      'stat-clicks': stats.clicks,
+    };
+
+    Object.entries(statMap).forEach(([id, value]) => {
+      const element = getById(id);
+      if (element) {
+        element.textContent = String(value ?? 0);
+      }
+    });
+  } catch (error) {
+    console.error('Dashboard stats failed', error);
+    ['stat-links', 'stat-bookings', 'stat-messages', 'stat-clicks'].forEach((id) => {
+      const element = getById(id);
+      if (element) {
+        element.textContent = '!';
+      }
+    });
   }
 }
 
@@ -72,7 +262,7 @@ export async function loadSiteSettingsAdmin() {
     }
 
     const setValue = (id, value) => {
-      const element = document.getElementById(id);
+      const element = getById(id);
       if (element) {
         element.value = value || '';
       }
@@ -101,13 +291,16 @@ export async function loadSiteSettingsAdmin() {
     setValue('set-cta-btn-text', data.cta_btn_text);
 
     toggleLogoFields();
-  } catch {
+  } catch (error) {
+    reportLoadFailure('Site settings', error);
   }
 }
 
 export async function saveSiteSettings() {
-  const getValue = (id) => document.getElementById(id)?.value || '';
+  const submitButton = getById('site-settings-save');
+  setButtonBusy(submitButton, true, 'Saving settings...');
 
+  const getValue = (id) => getById(id)?.value?.trim() || '';
   const payload = {
     site_name: getValue('set-site-name'),
     headline: getValue('set-headline'),
@@ -117,7 +310,7 @@ export async function saveSiteSettings() {
     cta_subtitle: getValue('set-cta-subtitle'),
     cta_button_text: getValue('set-cta-button'),
     logo_type: getValue('set-logo-type'),
-    logo_svg: getValue('set-logo-svg'),
+    logo_svg: getById('set-logo-svg')?.value || '',
     logo_image_url: getValue('set-logo-image'),
     logo_emoji: getValue('set-logo-emoji'),
     bg_color: getValue('set-bg-color'),
@@ -134,20 +327,28 @@ export async function saveSiteSettings() {
 
   try {
     await updateSiteSettings(payload);
-    alert('Settings saved!');
+    showToast('Site settings are live.', {
+      tone: 'success',
+      title: 'Saved',
+    });
   } catch (error) {
-    alert(`Failed: ${error.message}`);
+    showToast(formatErrorMessage(error, 'Unable to save site settings.'), {
+      tone: 'error',
+      title: 'Save failed',
+    });
+  } finally {
+    setButtonBusy(submitButton, false);
   }
 }
 
 export function toggleLogoFields() {
-  const typeSelector = document.getElementById('set-logo-type');
+  const typeSelector = getById('set-logo-type');
   if (!typeSelector) {
     return;
   }
 
   ['logo-svg-field', 'logo-image-field', 'logo-emoji-field'].forEach((id) => {
-    const element = document.getElementById(id);
+    const element = getById(id);
     if (element) {
       element.style.display = 'none';
     }
@@ -161,7 +362,7 @@ export function toggleLogoFields() {
 
   const targetField = fieldMap[typeSelector.value];
   if (targetField) {
-    const element = document.getElementById(targetField);
+    const element = getById(targetField);
     if (element) {
       element.style.display = '';
     }
@@ -169,276 +370,336 @@ export function toggleLogoFields() {
 }
 
 export async function refreshModulesAdmin() {
-  const container = document.getElementById('module-list');
-  if (!container) {
-    return;
-  }
+  setListState('module-list', 'Loading modules', 'Checking feature toggles...');
+  setListState('dashboard-active-modules', 'Loading modules', 'Fetching enabled sections...');
 
   try {
     const data = await getModules();
+    adminState.modules = data || [];
 
-    container.innerHTML = data
-      .map(
-        (moduleItem) => `
-          <div class="module-toggle-card ${moduleItem.is_enabled ? 'enabled' : ''}">
-            <div>
-              <i class="bi ${escapeHtml(moduleItem.icon)} me-2"></i>
-              <strong>${escapeHtml(moduleItem.name)}</strong>
-              <div class="text-muted small">${escapeHtml(moduleItem.description || '')}</div>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" ${moduleItem.is_enabled ? 'checked' : ''} onchange="toggleModule('${moduleItem.slug}', this.checked)">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>`
-      )
-      .join('');
-
-    const dashboardModules = document.getElementById('dashboard-active-modules');
-    if (dashboardModules) {
-      const activeModules = data.filter((moduleItem) => moduleItem.is_enabled);
-      dashboardModules.innerHTML = activeModules.length
-        ? activeModules
-            .map(
-              (moduleItem) =>
-                `<div class="d-flex align-items-center small border p-2 rounded bg-light"><i class="bi ${escapeHtml(moduleItem.icon)} me-2 text-primary"></i><span class="fw-bold">${escapeHtml(moduleItem.name)}</span></div>`
-            )
-            .join('')
-        : '<div class="text-muted small">No active modules.</div>';
+    const container = getById('module-list');
+    if (container) {
+      if (!adminState.modules.length) {
+        setListState('module-list', 'No modules found', 'Seed your modules table to continue.');
+      } else {
+        container.innerHTML = adminState.modules
+          .map(
+            (moduleItem) => `
+              <div class="module-toggle-card ${moduleItem.is_enabled ? 'enabled' : ''}">
+                <div>
+                  <i class="bi ${escapeHtml(moduleItem.icon)} me-2"></i>
+                  <strong>${escapeHtml(moduleItem.name)}</strong>
+                  <div class="text-muted small">${escapeHtml(moduleItem.description || '')}</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" ${moduleItem.is_enabled ? 'checked' : ''} onchange="toggleModule('${moduleItem.slug}', this.checked)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>`
+          )
+          .join('');
+      }
     }
 
-    data.forEach((moduleItem) => {
-      const panel = document.getElementById(`mod-${moduleItem.slug}`);
+    renderDashboardModules();
+
+    adminState.modules.forEach((moduleItem) => {
+      const panel = getById(`mod-${moduleItem.slug}`);
       if (panel) {
         panel.style.display = moduleItem.is_enabled ? '' : 'none';
       }
     });
 
-    if (data.find((moduleItem) => moduleItem.slug === 'testimonials' && moduleItem.is_enabled)) {
-      refreshTestimonials();
+    if (adminState.modules.find((moduleItem) => moduleItem.slug === 'testimonials' && moduleItem.is_enabled)) {
+      void refreshTestimonials();
     }
-    if (data.find((moduleItem) => moduleItem.slug === 'contact' && moduleItem.is_enabled)) {
-      refreshMessages();
+    if (adminState.modules.find((moduleItem) => moduleItem.slug === 'contact' && moduleItem.is_enabled)) {
+      void refreshMessages();
     }
-    if (data.find((moduleItem) => moduleItem.slug === 'analytics' && moduleItem.is_enabled)) {
-      loadAnalytics();
+    if (adminState.modules.find((moduleItem) => moduleItem.slug === 'analytics' && moduleItem.is_enabled)) {
+      void loadAnalytics();
     }
-  } catch {
+  } catch (error) {
+    reportLoadFailure('Modules', error, 'module-list', 'Modules unavailable');
+    reportLoadFailure('Dashboard modules', error, 'dashboard-active-modules', 'Modules unavailable');
   }
 }
 
 export async function toggleModule(slug, enabled) {
   try {
     await updateModuleStatus(slug, enabled);
-    refreshModulesAdmin();
+    showToast(`Module ${enabled ? 'enabled' : 'disabled'} successfully.`, {
+      tone: 'success',
+      title: 'Module updated',
+    });
+    await refreshModulesAdmin();
   } catch (error) {
-    alert(`Failed: ${error.message}`);
+    showToast(formatErrorMessage(error, 'Unable to update the module right now.'), {
+      tone: 'error',
+      title: 'Module update failed',
+    });
   }
 }
 
 export async function refreshAdminLinks() {
-  const listElement = document.getElementById('list-links');
-  if (!listElement) {
-    return;
-  }
-
-  listElement.innerHTML = '<small class="text-muted">Loading...</small>';
+  setListState('list-links', 'Loading links', 'Pulling your homepage links...');
 
   try {
     const data = await getAllLinks();
+    adminState.links = data || [];
 
-    listElement.innerHTML = data && data.length
-      ? data
+    const listElement = getById('list-links');
+    if (!listElement) {
+      return;
+    }
+
+    listElement.innerHTML = adminState.links.length
+      ? adminState.links
           .map((link) => {
             const badge = link.is_active
               ? '<span class="badge bg-success" style="font-size:0.6rem">ON</span>'
               : '<span class="badge bg-secondary" style="font-size:0.6rem">OFF</span>';
             const typeIcon = link.link_type === 'external' ? 'bi-box-arrow-up-right' : 'bi-folder2-open';
-            return `<div class="d-flex justify-content-between align-items-center border-bottom py-2 small"><div><i class="bi ${typeIcon} me-1"></i><strong>${escapeHtml(link.title)}</strong> ${badge}<div class="text-muted" style="font-size:0.7rem">${escapeHtml(link.url)}</div></div><div><button class="btn btn-link p-0 me-2" onclick='editLink(${JSON.stringify(link).replace(/'/g, '&#39;')})'>Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteLink('${link.id}')">Del</button></div></div>`;
+            return `<div class="d-flex justify-content-between align-items-center border-bottom py-2 small"><div><i class="bi ${typeIcon} me-1"></i><strong>${escapeHtml(link.title)}</strong> ${badge}<div class="text-muted" style="font-size:0.7rem">${escapeHtml(link.url)}</div></div><div><button class="btn btn-link p-0 me-2" onclick='editLink(${JSON.stringify(link).replace(/'/g, '&#39;')})'>Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteLink('${link.id}')">Delete</button></div></div>`;
           })
           .join('')
-      : '<small class="text-muted">No links.</small>';
-  } catch {
-    listElement.innerHTML = '<small class="text-danger">Error</small>';
+      : '';
+
+    if (!adminState.links.length) {
+      setListState('list-links', 'No links yet', 'Add your first homepage link to get started.');
+    }
+  } catch (error) {
+    reportLoadFailure('Links', error, 'list-links', 'Links unavailable');
   }
 }
 
 export async function saveLink(event) {
   event.preventDefault();
   const submitButton = event.target.querySelector('button[type="submit"]');
-  submitButton.disabled = true;
-  submitButton.innerText = 'Saving...';
+  setButtonBusy(submitButton, true, 'Saving link...');
 
-  const id = document.getElementById('link-id').value;
+  const id = getById('link-id')?.value || '';
   const payload = {
-    title: document.getElementById('link-title').value,
-    url: document.getElementById('link-url').value,
-    icon: document.getElementById('link-icon').value || 'bi-link-45deg',
-    link_type: document.getElementById('link-type').value,
-    internal_target: document.getElementById('link-internal-target').value || null,
-    style_bg: document.getElementById('link-style-bg').value || null,
-    display_order: Number.parseInt(document.getElementById('link-order').value, 10) || 0,
-    is_active: document.getElementById('link-active').checked,
+    title: getById('link-title')?.value?.trim() || '',
+    url: getById('link-url')?.value?.trim() || '',
+    icon: getById('link-icon')?.value?.trim() || 'bi-link-45deg',
+    link_type: getById('link-type')?.value || 'external',
+    internal_target: getById('link-internal-target')?.value || null,
+    style_bg: getById('link-style-bg')?.value?.trim() || null,
+    display_order: Number.parseInt(getById('link-order')?.value || '0', 10) || 0,
+    is_active: Boolean(getById('link-active')?.checked),
   };
 
   try {
+    validateLinkPayload(payload, id);
     await saveLinkData(id || null, payload);
     resetLinkForm();
     event.target.reset();
-    refreshAdminLinks();
-    refreshDashboard();
+    getById('link-active').checked = true;
+    getById('link-type').value = 'external';
+    toggleInternalFields();
+    await refreshAdminLinks();
+    await refreshDashboard();
+    showToast(`Link ${id ? 'updated' : 'created'} successfully.`, {
+      tone: 'success',
+      title: 'Links saved',
+    });
   } catch (error) {
-    alert(`Failed: ${error.message}`);
+    showToast(formatErrorMessage(error, 'Unable to save the link right now.'), {
+      tone: 'error',
+      title: 'Link save failed',
+    });
   } finally {
-    submitButton.disabled = false;
-    submitButton.innerText = 'Save Link';
+    setButtonBusy(submitButton, false);
   }
 }
 
 export function editLink(link) {
-  document.getElementById('link-id').value = link.id;
-  document.getElementById('link-title').value = link.title;
-  document.getElementById('link-url').value = link.url;
-  document.getElementById('link-icon').value = link.icon || '';
-  document.getElementById('link-type').value = link.link_type || 'external';
-  document.getElementById('link-internal-target').value = link.internal_target || '';
-  document.getElementById('link-style-bg').value = link.style_bg || '';
-  document.getElementById('link-order').value = link.display_order || 0;
-  document.getElementById('link-active').checked = link.is_active;
+  getById('link-id').value = link.id;
+  getById('link-title').value = link.title;
+  getById('link-url').value = link.url;
+  getById('link-icon').value = link.icon || '';
+  getById('link-type').value = link.link_type || 'external';
+  getById('link-internal-target').value = link.internal_target || '';
+  getById('link-style-bg').value = link.style_bg || '';
+  getById('link-order').value = link.display_order || 0;
+  getById('link-active').checked = link.is_active;
   toggleInternalFields();
-  document.getElementById('link-title').focus();
+  getById('link-title').focus();
 }
 
 export async function deleteLink(id) {
-  if (!window.confirm('Delete?')) {
+  if (!window.confirm('Delete this link?')) {
     return;
   }
 
-  await deleteLinkData(id);
-  refreshAdminLinks();
-  refreshDashboard();
+  try {
+    await deleteLinkData(id);
+    await refreshAdminLinks();
+    await refreshDashboard();
+    showToast('Link deleted.', {
+      tone: 'success',
+      title: 'Link removed',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to delete the link right now.'), {
+      tone: 'error',
+      title: 'Delete failed',
+    });
+  }
 }
+
 export function resetLinkForm() {
-  document.getElementById('link-id').value = '';
-  document.getElementById('link-active').checked = true;
+  getById('link-id').value = '';
+  getById('link-active').checked = true;
 }
 
 export function toggleInternalFields() {
-  const fields = document.getElementById('internal-fields');
+  const fields = getById('internal-fields');
   if (fields) {
-    fields.style.display = document.getElementById('link-type').value === 'internal' ? '' : 'none';
+    fields.style.display = getById('link-type')?.value === 'internal' ? '' : 'none';
+  }
+}
+
+async function refreshResourceTable(table) {
+  setListState(`list-${table}`, `Loading ${table}`, 'Fetching latest entries...');
+
+  const data = await getResources(table);
+  adminState.resources[table] = data || [];
+  const listElement = getById(`list-${table}`);
+  if (!listElement) {
+    return;
+  }
+
+  listElement.innerHTML = adminState.resources[table].length
+    ? adminState.resources[table]
+        .map(
+          (item) =>
+            `<div class="d-flex justify-content-between border-bottom py-2 small"><span>${escapeHtml(item.title)}</span><div><button class="btn btn-link p-0 me-2" onclick="editItem('${table}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteItem('${table}','${item.id}')">Delete</button></div></div>`
+        )
+        .join('')
+    : '';
+
+  if (!adminState.resources[table].length) {
+    setListState(`list-${table}`, `No ${table} yet`, 'Add an item to populate this list.');
   }
 }
 
 export async function refreshResources() {
-  for (const table of ['freebies', 'gear']) {
-    const listElement = document.getElementById(`list-${table}`);
-    if (!listElement) {
-      continue;
-    }
-
-    listElement.innerHTML = '<small class="text-muted">Loading...</small>';
-
-    try {
-      const data = await getResources(table);
-      listElement.innerHTML = data && data.length
-        ? data
-            .map(
-              (item) =>
-                `<div class="d-flex justify-content-between border-bottom py-2 small"><span>${escapeHtml(item.title)}</span><div><button class="btn btn-link p-0 me-2" onclick="editItem('${table}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteItem('${table}','${item.id}')">Del</button></div></div>`
-            )
-            .join('')
-        : '<small class="text-muted">Empty</small>';
-    } catch {
-      listElement.innerHTML = '<small class="text-danger">Error</small>';
-    }
+  try {
+    await refreshResourceTable('freebies');
+    await refreshResourceTable('gear');
+  } catch (error) {
+    reportLoadFailure('Resources', error, 'list-freebies', 'Resources unavailable');
+    reportLoadFailure('Resources', error, 'list-gear', 'Resources unavailable');
   }
 }
 
 export async function saveResource(event) {
   event.preventDefault();
   const submitButton = event.target.querySelector('button[type="submit"]');
-  submitButton.disabled = true;
-  submitButton.innerText = 'Saving...';
+  setButtonBusy(submitButton, true, 'Saving resource...');
 
-  const table = document.getElementById('form-sheet').value.toLowerCase();
-  const id = document.getElementById('form-id').value;
+  const table = (getById('form-sheet')?.value || 'Freebies').toLowerCase();
+  const id = getById('form-id')?.value || '';
   const payload = {
-    title: document.getElementById('form-title').value,
-    link: document.getElementById('form-link').value,
+    title: getById('form-title')?.value?.trim() || '',
+    link: getById('form-link')?.value?.trim() || '',
     display_order: 0,
   };
 
   if (table === 'freebies') {
-    payload.description = document.getElementById('form-extra').value;
+    payload.description = getById('form-extra')?.value?.trim() || '';
   } else {
-    payload.category = document.getElementById('form-extra').value;
+    payload.category = getById('form-extra')?.value?.trim() || '';
   }
 
   try {
+    validateResourcePayload(table, payload, id);
     await saveResourceData(table, id || null, payload);
-    document.getElementById('form-id').value = '';
+    getById('form-id').value = '';
     event.target.reset();
-    refreshResources();
+    await refreshResources();
+    showToast(`${table === 'freebies' ? 'Freebie' : 'Gear item'} ${id ? 'updated' : 'saved'} successfully.`, {
+      tone: 'success',
+      title: 'Resource saved',
+    });
   } catch (error) {
-    alert(`Failed: ${error.message}`);
+    showToast(formatErrorMessage(error, 'Unable to save the resource right now.'), {
+      tone: 'error',
+      title: 'Resource save failed',
+    });
   } finally {
-    submitButton.disabled = false;
-    submitButton.innerText = 'Save to Database';
+    setButtonBusy(submitButton, false);
   }
 }
 
 export function editItem(table, item) {
-  document.getElementById('form-sheet').value = table.charAt(0).toUpperCase() + table.slice(1);
-  document.getElementById('form-id').value = item.id;
-  document.getElementById('form-title').value = item.title;
-  document.getElementById('form-link').value = item.link;
-  document.getElementById('form-extra').value = item.description || item.category || '';
+  getById('form-sheet').value = table.charAt(0).toUpperCase() + table.slice(1);
+  getById('form-id').value = item.id;
+  getById('form-title').value = item.title;
+  getById('form-link').value = item.link;
+  getById('form-extra').value = item.description || item.category || '';
 }
 
 export async function deleteItem(table, id) {
-  if (!window.confirm('Delete?')) {
+  if (!window.confirm(`Delete this ${table === 'bookings' ? 'booking' : 'item'}?`)) {
     return;
   }
-
-  if (table === 'bookings') {
-    await deleteBooking(id);
-    refreshBookings();
-    refreshDashboard();
-    return;
-  }
-
-  await deleteResource(table, id);
-  refreshResources();
-}
-
-export async function refreshBookings() {
-  const listElement = document.getElementById('list-bookings');
-  if (!listElement) {
-    return;
-  }
-
-  listElement.innerHTML = '<small class="text-muted">Loading...</small>';
 
   try {
-    const data = await getBookings();
-
-    if (!data || !data.length) {
-      listElement.innerHTML = '<small class="text-muted">No bookings.</small>';
+    if (table === 'bookings') {
+      await deleteBooking(id);
+      await refreshBookings();
+      await refreshDashboard();
+      showToast('Booking deleted.', {
+        tone: 'success',
+        title: 'Booking removed',
+      });
       return;
     }
 
-    listElement.innerHTML = data
+    await deleteResource(table, id);
+    await refreshResources();
+    showToast('Resource deleted.', {
+      tone: 'success',
+      title: 'Resource removed',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to delete the item right now.'), {
+      tone: 'error',
+      title: 'Delete failed',
+    });
+  }
+}
+
+export async function refreshBookings() {
+  setListState('list-bookings', 'Loading bookings', 'Checking incoming consultation requests...');
+
+  try {
+    const data = await getBookings();
+    adminState.bookings = data || [];
+    const listElement = getById('list-bookings');
+    if (!listElement) {
+      return;
+    }
+
+    if (!adminState.bookings.length) {
+      setListState('list-bookings', 'No bookings yet', 'New consultations will show up here.');
+      return;
+    }
+
+    listElement.innerHTML = adminState.bookings
       .map((booking) => {
         const meetAction = booking.meetlink
           ? `<a href="${escapeHtml(booking.meetlink)}" target="_blank" rel="noreferrer" class="btn btn-sm btn-success fw-bold" style="font-size:0.7rem"><i class="bi bi-camera-video"></i> Meet</a>`
           : `<button class="btn btn-sm btn-outline-dark" style="font-size:0.7rem" onclick="confirmBooking('${booking.id}','${escapeHtml(booking.name)}')"><i class="bi bi-check-lg"></i> Confirm</button>`;
 
-        return `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between align-items-center"><div><strong>${escapeHtml(booking.name)}</strong> <span class="badge bg-light text-dark border">${escapeHtml(booking.topic)}</span><div class="text-muted">${formatDate(booking.schedule)} · ${escapeHtml(booking.email)}</div></div><div class="d-flex flex-column gap-1 text-end">${meetAction}<button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteItem('bookings','${booking.id}')">Del</button></div></div></div>`;
+        return `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between align-items-center"><div><strong>${escapeHtml(booking.name)}</strong> <span class="badge bg-light text-dark border">${escapeHtml(booking.topic)}</span><div class="text-muted">${formatDate(booking.schedule)} · ${escapeHtml(booking.email)}</div></div><div class="d-flex flex-column gap-1 text-end">${meetAction}<button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteItem('bookings','${booking.id}')">Delete</button></div></div></div>`;
       })
       .join('');
-  } catch {
-    listElement.innerHTML = '<small class="text-danger">Error</small>';
+  } catch (error) {
+    reportLoadFailure('Bookings', error, 'list-bookings', 'Bookings unavailable');
   }
 }
 
@@ -449,114 +710,171 @@ export async function confirmBooking(id, name) {
   }
 
   try {
-    await updateBookingConfirmation(id, meetLink);
-    alert('Confirmed!');
-    refreshBookings();
-    refreshDashboard();
-  } catch {
-    alert('Failed');
+    await updateBookingConfirmation(id, meetLink.trim());
+    await refreshBookings();
+    await refreshDashboard();
+    showToast('Booking confirmed and meet link saved.', {
+      tone: 'success',
+      title: 'Booking confirmed',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to confirm the booking right now.'), {
+      tone: 'error',
+      title: 'Confirmation failed',
+    });
   }
 }
+
 export async function refreshTestimonials() {
-  const listElement = document.getElementById('list-testimonials');
-  if (!listElement) {
-    return;
-  }
+  setListState('list-testimonials', 'Loading testimonials', 'Fetching social proof from the database...');
 
   try {
     const data = await getTestimonials();
-    listElement.innerHTML = data && data.length
-      ? data
-          .map(
-            (testimonial) =>
-              `<div class="d-flex justify-content-between border-bottom py-2 small"><div><strong>${escapeHtml(testimonial.name)}</strong> ${'&#9733;'.repeat(testimonial.rating)}<div class="text-muted">${escapeHtml(testimonial.content).substring(0, 60)}...</div></div><div><button class="btn btn-link p-0 me-2" onclick="editTestimonial(${JSON.stringify(testimonial).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteTestimonial('${testimonial.id}')">Del</button></div></div>`
-          )
-          .join('')
-      : '<small class="text-muted">No testimonials.</small>';
-  } catch {
+    adminState.testimonials = data || [];
+    const listElement = getById('list-testimonials');
+    if (!listElement) {
+      return;
+    }
+
+    if (!adminState.testimonials.length) {
+      setListState('list-testimonials', 'No testimonials yet', 'Saved testimonials will appear here.');
+      return;
+    }
+
+    listElement.innerHTML = adminState.testimonials
+      .map(
+        (testimonial) =>
+          `<div class="d-flex justify-content-between border-bottom py-2 small"><div><strong>${escapeHtml(testimonial.name)}</strong> ${'&#9733;'.repeat(testimonial.rating)}<div class="text-muted">${escapeHtml(testimonial.content).substring(0, 80)}...</div></div><div><button class="btn btn-link p-0 me-2" onclick="editTestimonial(${JSON.stringify(testimonial).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteTestimonial('${testimonial.id}')">Delete</button></div></div>`
+      )
+      .join('');
+  } catch (error) {
+    reportLoadFailure('Testimonials', error, 'list-testimonials', 'Testimonials unavailable');
   }
 }
 
 export async function saveTestimonial(event) {
   event.preventDefault();
-  const id = document.getElementById('testi-id').value;
+  const submitButton = event.target.querySelector('button[type="submit"]');
+  setButtonBusy(submitButton, true, 'Saving testimonial...');
+
+  const id = getById('testi-id')?.value || '';
   const payload = {
-    name: document.getElementById('testi-name').value,
-    role: document.getElementById('testi-role').value,
-    content: document.getElementById('testi-content').value,
-    rating: Number.parseInt(document.getElementById('testi-rating').value, 10),
+    name: getById('testi-name')?.value?.trim() || '',
+    role: getById('testi-role')?.value?.trim() || '',
+    content: getById('testi-content')?.value?.trim() || '',
+    rating: Number.parseInt(getById('testi-rating')?.value || '5', 10),
     is_featured: true,
     display_order: 0,
   };
 
   try {
+    validateTestimonialPayload(payload, id);
     await saveTestimonialData(id || null, payload);
-    document.getElementById('testi-id').value = '';
+    getById('testi-id').value = '';
     event.target.reset();
-    refreshTestimonials();
+    await refreshTestimonials();
+    showToast(`Testimonial ${id ? 'updated' : 'saved'} successfully.`, {
+      tone: 'success',
+      title: 'Testimonial saved',
+    });
   } catch (error) {
-    alert(`Failed: ${error.message}`);
+    showToast(formatErrorMessage(error, 'Unable to save the testimonial right now.'), {
+      tone: 'error',
+      title: 'Testimonial save failed',
+    });
+  } finally {
+    setButtonBusy(submitButton, false);
   }
 }
 
 export function editTestimonial(testimonial) {
-  document.getElementById('testi-id').value = testimonial.id;
-  document.getElementById('testi-name').value = testimonial.name;
-  document.getElementById('testi-role').value = testimonial.role || '';
-  document.getElementById('testi-content').value = testimonial.content;
-  document.getElementById('testi-rating').value = testimonial.rating;
+  getById('testi-id').value = testimonial.id;
+  getById('testi-name').value = testimonial.name;
+  getById('testi-role').value = testimonial.role || '';
+  getById('testi-content').value = testimonial.content;
+  getById('testi-rating').value = testimonial.rating;
 }
 
 export async function deleteTestimonial(id) {
-  if (!window.confirm('Delete?')) {
-    return;
-  }
-
-  await deleteTestimonialData(id);
-  refreshTestimonials();
-}
-
-export async function refreshMessages() {
-  const listElement = document.getElementById('list-messages');
-  if (!listElement) {
+  if (!window.confirm('Delete this testimonial?')) {
     return;
   }
 
   try {
+    await deleteTestimonialData(id);
+    await refreshTestimonials();
+    showToast('Testimonial deleted.', {
+      tone: 'success',
+      title: 'Testimonial removed',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to delete the testimonial right now.'), {
+      tone: 'error',
+      title: 'Delete failed',
+    });
+  }
+}
+
+export async function refreshMessages() {
+  setListState('list-messages', 'Loading messages', 'Fetching contact inbox...');
+
+  try {
     const data = await getContactMessages();
-    listElement.innerHTML = data && data.length
-      ? data
-          .map(
-            (message) =>
-              `<div class="border-bottom py-2 small ${message.is_read ? '' : 'fw-bold'}"><div class="d-flex justify-content-between"><div><strong>${escapeHtml(message.name)}</strong> <span class="text-muted">${escapeHtml(message.email)}</span><div>${escapeHtml(message.message)}</div><div class="text-muted" style="font-size:0.7rem">${formatDate(message.created_at)}</div></div><div><button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteMessage('${message.id}')">Del</button></div></div></div>`
-          )
-          .join('')
-      : '<small class="text-muted">No messages.</small>';
-  } catch {
+    adminState.messages = data || [];
+    const listElement = getById('list-messages');
+    if (!listElement) {
+      return;
+    }
+
+    if (!adminState.messages.length) {
+      setListState('list-messages', 'Inbox is clear', 'New messages will show up here.');
+      return;
+    }
+
+    listElement.innerHTML = adminState.messages
+      .map(
+        (message) =>
+          `<div class="border-bottom py-2 small ${message.is_read ? '' : 'fw-bold'}"><div class="d-flex justify-content-between"><div><strong>${escapeHtml(message.name)}</strong> <span class="text-muted">${escapeHtml(message.email)}</span><div>${escapeHtml(message.message)}</div><div class="text-muted" style="font-size:0.7rem">${formatDate(message.created_at)}</div></div><div><button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteMessage('${message.id}')">Delete</button></div></div></div>`
+      )
+      .join('');
+  } catch (error) {
+    reportLoadFailure('Messages', error, 'list-messages', 'Messages unavailable');
   }
 }
 
 export async function deleteMessage(id) {
-  if (!window.confirm('Delete?')) {
-    return;
-  }
-
-  await deleteContactMessage(id);
-  refreshMessages();
-  refreshDashboard();
-}
-
-export async function loadAnalytics() {
-  const analyticsElement = document.getElementById('analytics-data');
-  if (!analyticsElement) {
+  if (!window.confirm('Delete this message?')) {
     return;
   }
 
   try {
+    await deleteContactMessage(id);
+    await refreshMessages();
+    await refreshDashboard();
+    showToast('Message deleted.', {
+      tone: 'success',
+      title: 'Message removed',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to delete the message right now.'), {
+      tone: 'error',
+      title: 'Delete failed',
+    });
+  }
+}
+
+export async function loadAnalytics() {
+  setListState('analytics-data', 'Loading analytics', 'Summarising your recent link clicks...');
+
+  try {
     const data = await getRecentLinkClicks();
+    const analyticsElement = getById('analytics-data');
+    if (!analyticsElement) {
+      return;
+    }
 
     if (!data || !data.length) {
-      analyticsElement.innerHTML = '<small class="text-muted">No click data yet.</small>';
+      setListState('analytics-data', 'No click data yet', 'Analytics will populate once visitors start clicking links.');
       return;
     }
 
@@ -577,7 +895,7 @@ export async function loadAnalytics() {
         })
         .join('') +
       `<div class="text-muted small mt-3">Total clicks tracked: ${data.length}</div>`;
-  } catch {
-    analyticsElement.innerHTML = '<small class="text-danger">Error loading analytics.</small>';
+  } catch (error) {
+    reportLoadFailure('Analytics', error, 'analytics-data', 'Analytics unavailable');
   }
 }

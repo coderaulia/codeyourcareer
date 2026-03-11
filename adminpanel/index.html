@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob: ws: wss:; img-src 'self' data: https: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.codeyourcareer.my.id https://*.supabase.co ws: wss:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob: ws: wss:; img-src 'self' data: https: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.codeyourcareer.my.id ws: wss:;">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>CYC Management</title>
@@ -23,8 +23,14 @@
   </div>
 
   <div id="dashboard" class="container hidden mt-4" style="max-width:1100px;">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h4 class="fw-bold mb-0">CYC Management</h4>
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+      <div>
+        <h4 class="fw-bold mb-1">CYC Management</h4>
+        <div class="admin-meta">
+          <span id="deploy-version" class="admin-chip">Checking version...</span>
+          <span id="admin-user-email" class="admin-chip admin-chip-soft">Signed in</span>
+        </div>
+      </div>
       <button class="btn btn-sm btn-outline-danger" onclick="adminLogout()">Logout</button>
     </div>
 
@@ -50,12 +56,22 @@
           </div>
         </div>
         <div class="col-md-5">
-          <div class="admin-card">
+          <div class="admin-card mb-4">
             <h5 class="fw-bold mb-3"><i class="bi bi-cpu"></i> Active Modules</h5>
             <div id="dashboard-active-modules" class="d-flex flex-column gap-2">
               <div class="text-muted small">Loading state...</div>
             </div>
             <button class="btn btn-sm btn-outline-dark mt-3 w-100" onclick="document.querySelector('.admin-tab:last-child').click()">Manage Modules</button>
+          </div>
+          <div class="admin-card">
+            <h5 class="fw-bold mb-3"><i class="bi bi-shield-lock"></i> Security</h5>
+            <p class="small text-muted mb-3">Rotate the admin password without touching the database manually.</p>
+            <form onsubmit="submitPasswordChange(event)">
+              <div class="mb-2"><label class="small fw-bold">CURRENT PASSWORD</label><input type="password" id="current-password" class="form-control" required autocomplete="current-password"></div>
+              <div class="mb-2"><label class="small fw-bold">NEW PASSWORD</label><input type="password" id="new-password" class="form-control" required minlength="10" autocomplete="new-password"></div>
+              <div class="mb-3"><label class="small fw-bold">CONFIRM PASSWORD</label><input type="password" id="confirm-password" class="form-control" required minlength="10" autocomplete="new-password"></div>
+              <button type="submit" class="btn btn-dark w-100">Change Password</button>
+            </form>
           </div>
         </div>
       </div>
@@ -75,7 +91,7 @@
             <div class="mb-2"><label class="small fw-bold">CTA TITLE</label><input type="text" id="set-cta-title" class="form-control"></div>
             <div class="mb-2"><label class="small fw-bold">CTA SUBTITLE</label><input type="text" id="set-cta-subtitle" class="form-control"></div>
             <div class="mb-3"><label class="small fw-bold">CTA BUTTON TEXT</label><input type="text" id="set-cta-button" class="form-control"></div>
-            <button class="btn btn-dark w-100" onclick="saveSiteSettings()">Save Settings</button>
+            <button id="site-settings-save" class="btn btn-dark w-100" onclick="saveSiteSettings()">Save Settings</button>
           </div>
         </div>
         <div class="col-md-6">
@@ -225,3 +241,6 @@
   <script type="module" src="/src/admin-main.js"></script>
 </body>
 </html>
+
+
+

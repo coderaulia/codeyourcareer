@@ -310,3 +310,138 @@ body {
     cursor: pointer;
     padding: 2px;
 }
+.admin-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #111111;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.admin-chip-soft {
+    background: #eef1f5;
+    color: #24313f;
+}
+
+.panel-feedback {
+    border: 1px dashed rgba(17, 17, 17, 0.12);
+    border-radius: 14px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.7);
+    text-align: left;
+}
+
+.panel-feedback-compact {
+    padding: 14px;
+}
+
+.panel-feedback-muted {
+    color: #54606c;
+}
+
+.panel-feedback-error {
+    border-color: rgba(191, 54, 12, 0.25);
+    background: #fff4f0;
+    color: #8d2b08;
+}
+
+.panel-feedback__title {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.panel-feedback__message {
+    font-size: 0.9rem;
+    opacity: 0.88;
+}
+
+.toast-region {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 1080;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(360px, calc(100vw - 32px));
+}
+
+.app-toast {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(17, 17, 17, 0.08);
+    background: rgba(255, 255, 255, 0.95);
+    color: #111111;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.14);
+    transform: translateY(-10px);
+    opacity: 0;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    backdrop-filter: blur(12px);
+}
+
+.app-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.app-toast-success {
+    border-color: rgba(25, 135, 84, 0.22);
+}
+
+.app-toast-error {
+    border-color: rgba(191, 54, 12, 0.25);
+    background: rgba(255, 244, 240, 0.97);
+}
+
+.app-toast-info {
+    border-color: rgba(13, 110, 253, 0.16);
+}
+
+.app-toast__content {
+    flex: 1;
+    font-size: 0.94rem;
+}
+
+.app-toast__title {
+    font-weight: 800;
+    margin-bottom: 2px;
+}
+
+.app-toast__close {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0;
+}
+
+@media (max-width: 767px) {
+    .container-narrow {
+        padding: 28px 16px;
+    }
+
+    .admin-card {
+        padding: 20px;
+    }
+
+    .toast-region {
+        left: 16px;
+        right: 16px;
+        width: auto;
+    }
+}

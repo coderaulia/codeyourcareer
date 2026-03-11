@@ -19,6 +19,7 @@ import {
   refreshModulesAdmin,
   refreshResources,
   refreshTestimonials,
+  refreshVersionInfo,
   resetLinkForm,
   saveLink,
   saveResource,
@@ -29,7 +30,7 @@ import {
   toggleLogoFields,
   toggleModule,
 } from './features/admin.js';
-import { adminLogin, adminLogout, checkAdminSession } from './features/auth.js';
+import { adminLogin, adminLogout, checkAdminSession, submitPasswordChange } from './features/auth.js';
 
 window.anime = anime;
 
@@ -52,11 +53,13 @@ Object.assign(window, {
   refreshModulesAdmin,
   refreshResources,
   refreshTestimonials,
+  refreshVersionInfo,
   resetLinkForm,
   saveLink,
   saveResource,
   saveSiteSettings,
   saveTestimonial,
+  submitPasswordChange,
   switchAdminTab,
   toggleInternalFields,
   toggleLogoFields,

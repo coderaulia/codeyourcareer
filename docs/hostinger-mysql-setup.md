@@ -5,6 +5,7 @@
 - Open Hostinger hPanel.
 - Create a MySQL database and user.
 - Keep the database host as `localhost` unless Hostinger shows a different value in your panel.
+- If MySQL rejects `localhost`, use `127.0.0.1` instead.
 
 ## 2. Import the schema
 
@@ -27,11 +28,13 @@ Set these variables in Hostinger:
 - `ADMIN_PASSWORD`
 - `VITE_API_BASE_URL`
 - `CORS_ALLOWED_ORIGINS`
+- `DEPLOY_MARKER`
 
 Recommended values by deployment mode:
 
 - Same-domain app: `VITE_API_BASE_URL=` and `CORS_ALLOWED_ORIGINS=`
 - Separate API subdomain: `VITE_API_BASE_URL=https://api.codeyourcareer.my.id` and `CORS_ALLOWED_ORIGINS=https://codeyourcareer.my.id`
+- `DEPLOY_MARKER` can be a date or git SHA such as `2026-03-11-049d66b`
 
 Do not set `VITE_API_BASE_URL` to a value ending in `/api`.
 
@@ -52,7 +55,7 @@ npm install
 npm start
 ```
 
-## 5. Create the first admin user
+## 5. Create or rotate the first admin user
 
 Run:
 
@@ -60,20 +63,17 @@ Run:
 npm run seed:admin
 ```
 
-This uses `ADMIN_EMAIL` and `ADMIN_PASSWORD` from the environment and stores a hashed password in MySQL.
+This uses `ADMIN_EMAIL` and `ADMIN_PASSWORD` from the environment and stores a hashed password in MySQL. After the app is live, you can also rotate the admin password from `/adminpanel`.
 
-## 6. Important Hostinger check
+## 6. Important Hostinger checks
 
-If `https://your-domain/api/health` returns Hostinger's default "This Page Does Not Exist" HTML page, the domain is not reaching the Node.js app. In that case:
+- `https://your-domain/api/health` should return JSON.
+- `https://your-domain/api/version` should return the app version and deploy marker.
+- If `https://your-domain/api/health` returns Hostinger's default 404 HTML page, the domain is not reaching the Node.js app.
+- If `https://your-domain/api/health` returns `database:false`, re-check the MySQL credentials and host value.
 
-- make sure the domain is attached to the Node.js Web App, not only a static website deployment
-- make sure the app start command is `npm start`
-- if the root domain is staying on a static Vite deployment, deploy the Express server separately on `api.codeyourcareer.my.id`
+## 7. Post-deploy security
 
-## 7. Verify
-
-- `https://your-domain/api/health` returns JSON.
-- Public landing page loads.
-- `/adminpanel` shows the login form.
-- Admin login works with the seeded credentials.
-- Bookings and contact messages are written into MySQL.
+- Rotate `MYSQL_PASSWORD`, `ADMIN_PASSWORD`, and `SESSION_SECRET` if they were ever exposed.
+- Redeploy after any environment-variable change.
+- Keep only one active admin credential set in Hostinger.

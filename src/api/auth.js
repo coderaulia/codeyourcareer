@@ -16,6 +16,13 @@ export async function loginWithPassword(email, password) {
   });
 }
 
+export async function changePassword(currentPassword, newPassword, confirmPassword) {
+  return apiRequest('/auth/change-password', {
+    method: 'POST',
+    body: { currentPassword, newPassword, confirmPassword },
+  });
+}
+
 export async function logout() {
   return apiRequest('/auth/logout', {
     method: 'POST',

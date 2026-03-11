@@ -1,5 +1,9 @@
 import { apiRequest } from './http.js';
 
+export async function getVersionInfo() {
+  return apiRequest('/version');
+}
+
 export async function getSiteSettings() {
   return apiRequest('/site-settings');
 }

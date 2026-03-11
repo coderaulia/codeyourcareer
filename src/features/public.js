@@ -9,7 +9,23 @@ import {
   recordLinkClick,
 } from '../api/data.js';
 import { MODULES } from '../shared/modules.js';
-import { escapeHtml, navigateTo } from '../shared/utils.js';
+import {
+  escapeHtml,
+  formatErrorMessage,
+  navigateTo,
+  setButtonBusy,
+  setElementState,
+  showToast,
+} from '../shared/utils.js';
+
+function setPublicState(id, title, message, tone = 'muted') {
+  setElementState(document.getElementById(id), {
+    tone,
+    title,
+    message,
+    compact: false,
+  });
+}
 
 export async function loadSiteSettings() {
   try {
@@ -127,11 +143,13 @@ export async function loadLinks() {
     return;
   }
 
+  setPublicState('dynamic-links', 'Loading links', 'Fetching the latest shortcuts for you...');
+
   try {
     const links = await getActiveLinks();
 
     if (!links || !links.length) {
-      container.innerHTML = '<div class="text-muted small text-center">No links yet.</div>';
+      setPublicState('dynamic-links', 'No links yet', 'This page is ready for content. Check back soon.');
       return;
     }
 
@@ -165,6 +183,7 @@ export async function loadLinks() {
     container.innerHTML = markup;
   } catch (error) {
     console.error('Links error:', error);
+    setPublicState('dynamic-links', 'Links unavailable', formatErrorMessage(error), 'error');
   }
 }
 
@@ -174,7 +193,11 @@ export async function fetchResources(table, containerId) {
     return;
   }
 
-  container.innerHTML = '<div class="text-muted small text-center py-4">Loading...</div>';
+  setElementState(container, {
+    tone: 'muted',
+    title: `Loading ${table}`,
+    message: 'Fetching the latest items...',
+  });
 
   try {
     const data = await getResources(table);
@@ -186,9 +209,21 @@ export async function fetchResources(table, containerId) {
                 `<a href="${escapeHtml(item.link)}" target="_blank" rel="noreferrer" class="link-card"><div><div class="fw-bold">${escapeHtml(item.title)}</div><div class="small text-muted">${escapeHtml(item.description || item.category || '')}</div></div><i class="bi bi-box-arrow-up-right"></i></a>`
             )
             .join('')
-        : '<div class="text-muted small text-center">No items found.</div>';
-  } catch {
-    container.innerHTML = '<div class="text-danger small text-center">Failed to load.</div>';
+        : '';
+
+    if (!data || !data.length) {
+      setElementState(container, {
+        tone: 'muted',
+        title: `No ${table} yet`,
+        message: 'Fresh content will appear here soon.',
+      });
+    }
+  } catch (error) {
+    setElementState(container, {
+      tone: 'error',
+      title: `Unable to load ${table}`,
+      message: formatErrorMessage(error),
+    });
   }
 }
 
@@ -200,8 +235,7 @@ export async function handleFormSubmit(event) {
   }
 
   const submitButton = event.target.querySelector('button');
-  submitButton.disabled = true;
-  submitButton.innerText = 'Processing...';
+  setButtonBusy(submitButton, true, 'Processing request...');
 
   try {
     await createBooking({
@@ -211,14 +245,19 @@ export async function handleFormSubmit(event) {
       schedule: document.getElementById('schedule').value,
     });
 
-    alert('Success! Session booked.');
+    showToast('Your consultation request is in. You will hear back soon.', {
+      tone: 'success',
+      title: 'Booking received',
+    });
     navigateTo('home');
     event.target.reset();
   } catch (error) {
-    alert(`Error: ${error.message || 'Failed'}`);
+    showToast(formatErrorMessage(error, 'Unable to book the session right now.'), {
+      tone: 'error',
+      title: 'Booking failed',
+    });
   } finally {
-    submitButton.disabled = false;
-    submitButton.innerText = 'Submit Request';
+    setButtonBusy(submitButton, false);
   }
 }
 
@@ -261,8 +300,7 @@ export async function handleContactSubmit(event) {
   }
 
   const submitButton = event.target.querySelector('button');
-  submitButton.disabled = true;
-  submitButton.innerText = 'Sending...';
+  setButtonBusy(submitButton, true, 'Sending message...');
 
   try {
     await createContactMessage({
@@ -271,14 +309,19 @@ export async function handleContactSubmit(event) {
       message: document.getElementById('contact-message').value,
     });
 
-    alert('Message sent! Thank you.');
+    showToast('Your message has been sent. Thank you for reaching out.', {
+      tone: 'success',
+      title: 'Message sent',
+    });
     navigateTo('home');
     event.target.reset();
   } catch (error) {
-    alert(`Error: ${error.message || 'Failed'}`);
+    showToast(formatErrorMessage(error, 'Unable to send your message right now.'), {
+      tone: 'error',
+      title: 'Message failed',
+    });
   } finally {
-    submitButton.disabled = false;
-    submitButton.innerText = 'Send Message';
+    setButtonBusy(submitButton, false);
   }
 }
 
@@ -295,9 +338,9 @@ export function initPublicPage() {
   }
 
   if (document.getElementById('dynamic-links')) {
-    loadSiteSettings();
-    loadModules();
-    loadLinks();
+    void loadSiteSettings();
+    void loadModules();
+    void loadLinks();
   }
 
   const animator = typeof window !== 'undefined' ? window.anime : undefined;
