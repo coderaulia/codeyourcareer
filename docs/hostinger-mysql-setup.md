@@ -25,6 +25,7 @@ Set these variables in Hostinger Node.js hosting:
 - `MYSQL_PASSWORD`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
+- `VITE_API_BASE_URL` leave blank when the frontend and API use the same domain. If you set it manually, use the site root like `https://codeyourcareer.my.id`, not `https://codeyourcareer.my.id/api`.
 
 ## 4. Install and build
 

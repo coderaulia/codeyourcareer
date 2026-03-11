@@ -1,4 +1,7 @@
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
+const apiBaseUrl = configuredApiBaseUrl.endsWith('/api')
+  ? configuredApiBaseUrl.slice(0, -4)
+  : configuredApiBaseUrl;
 
 export async function apiRequest(path, options = {}) {
   const { body, headers = {}, method = 'GET', signal } = options;
