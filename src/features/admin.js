@@ -49,6 +49,25 @@ function getById(id) {
   return document.getElementById(id);
 }
 
+const DEFAULT_LINK_BG = '#f1f3f5';
+
+function normalizeHexColor(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+    return '#' + trimmed.slice(1).split('').map((character) => character + character).join('').toLowerCase();
+  }
+
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+
+  return '';
+}
+
 function normalizeForCompare(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -76,7 +95,7 @@ function updateHeaderContext() {
       versionElement.textContent = 'Version unavailable';
     } else {
       versionElement.textContent = adminState.version.deployMarker
-        ? `${adminState.version.version} · ${adminState.version.deployMarker}`
+        ? `${adminState.version.version} - ${adminState.version.deployMarker}`
         : adminState.version.version;
       versionElement.title = `Started ${formatDate(adminState.version.startedAt)}`;
     }
@@ -485,7 +504,10 @@ export async function saveLink(event) {
     icon: getById('link-icon')?.value?.trim() || 'bi-link-45deg',
     link_type: getById('link-type')?.value || 'external',
     internal_target: getById('link-internal-target')?.value || null,
-    style_bg: getById('link-style-bg')?.value?.trim() || null,
+    style_bg:
+      (getById('link-type')?.value || 'external') === 'internal'
+        ? normalizeHexColor(getById('link-style-bg')?.value) || null
+        : null,
     display_order: Number.parseInt(getById('link-order')?.value || '0', 10) || 0,
     is_active: Boolean(getById('link-active')?.checked),
   };
@@ -494,10 +516,6 @@ export async function saveLink(event) {
     validateLinkPayload(payload, id);
     await saveLinkData(id || null, payload);
     resetLinkForm();
-    event.target.reset();
-    getById('link-active').checked = true;
-    getById('link-type').value = 'external';
-    toggleInternalFields();
     await refreshAdminLinks();
     await refreshDashboard();
     showToast(`Link ${id ? 'updated' : 'created'} successfully.`, {
@@ -521,7 +539,7 @@ export function editLink(link) {
   getById('link-icon').value = link.icon || '';
   getById('link-type').value = link.link_type || 'external';
   getById('link-internal-target').value = link.internal_target || '';
-  getById('link-style-bg').value = link.style_bg || '';
+  syncLinkStyleBg(link.style_bg || '');
   getById('link-order').value = link.display_order || 0;
   getById('link-active').checked = link.is_active;
   toggleInternalFields();
@@ -549,9 +567,36 @@ export async function deleteLink(id) {
   }
 }
 
+export function syncLinkStyleBg(value, preserveTextInput = false) {
+  const picker = getById('link-style-bg-picker');
+  const textInput = getById('link-style-bg');
+  const rawValue = String(value || '').trim();
+  const normalized = normalizeHexColor(rawValue);
+
+  if (textInput && !preserveTextInput) {
+    textInput.value = normalized || rawValue;
+  }
+
+  if (picker) {
+    if (!rawValue) {
+      picker.value = DEFAULT_LINK_BG;
+    } else if (normalized) {
+      picker.value = normalized;
+    }
+  }
+}
+
 export function resetLinkForm() {
+  const form = getById('link-form');
+  form?.reset();
+
   getById('link-id').value = '';
+  getById('link-type').value = 'external';
+  getById('link-internal-target').value = '';
   getById('link-active').checked = true;
+  syncLinkStyleBg('');
+  toggleInternalFields();
+  getById('link-title')?.focus();
 }
 
 export function toggleInternalFields() {
@@ -695,7 +740,7 @@ export async function refreshBookings() {
           ? `<a href="${escapeHtml(booking.meetlink)}" target="_blank" rel="noreferrer" class="btn btn-sm btn-success fw-bold" style="font-size:0.7rem"><i class="bi bi-camera-video"></i> Meet</a>`
           : `<button class="btn btn-sm btn-outline-dark" style="font-size:0.7rem" onclick="confirmBooking('${booking.id}','${escapeHtml(booking.name)}')"><i class="bi bi-check-lg"></i> Confirm</button>`;
 
-        return `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between align-items-center"><div><strong>${escapeHtml(booking.name)}</strong> <span class="badge bg-light text-dark border">${escapeHtml(booking.topic)}</span><div class="text-muted">${formatDate(booking.schedule)} · ${escapeHtml(booking.email)}</div></div><div class="d-flex flex-column gap-1 text-end">${meetAction}<button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteItem('bookings','${booking.id}')">Delete</button></div></div></div>`;
+        return `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between align-items-center"><div><strong>${escapeHtml(booking.name)}</strong> <span class="badge bg-light text-dark border">${escapeHtml(booking.topic)}</span><div class="text-muted">${formatDate(booking.schedule)} - ${escapeHtml(booking.email)}</div></div><div class="d-flex flex-column gap-1 text-end">${meetAction}<button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteItem('bookings','${booking.id}')">Delete</button></div></div></div>`;
       })
       .join('');
   } catch (error) {

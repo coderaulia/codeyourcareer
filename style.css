@@ -82,6 +82,13 @@ body {
     border-color: var(--accent);
 }
 
+.link-card-button {
+    width: 100%;
+    font: inherit;
+    text-align: left;
+    appearance: none;
+}
+
 .consult-section {
     margin-top: 3rem;
     background: var(--cta-bg);

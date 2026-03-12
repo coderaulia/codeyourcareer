@@ -159,11 +159,11 @@ export async function loadLinks() {
     let markup = '';
 
     externalLinks.forEach((link) => {
-      const clickTrack = MODULES.analytics
-        ? `onclick="trackClick(${JSON.stringify(String(link.id))}, ${JSON.stringify(link.title || '')}); return true;"`
+      const trackAttributes = MODULES.analytics
+        ? ` data-track-id="${escapeHtml(String(link.id))}" data-track-title="${escapeHtml(link.title || '')}"`
         : '';
 
-      markup += `<a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer" class="link-card" ${clickTrack}><span class="link-icon"><i class="bi ${escapeHtml(link.icon)}"></i></span><span class="link-text">${escapeHtml(link.title)}</span><i class="bi bi-arrow-right"></i></a>`;
+      markup += `<a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer" class="link-card"${trackAttributes}><span class="link-icon"><i class="bi ${escapeHtml(link.icon)}"></i></span><span class="link-text">${escapeHtml(link.title)}</span><i class="bi bi-arrow-right"></i></a>`;
     });
 
     if (externalLinks.length && internalLinks.length) {
@@ -173,18 +173,33 @@ export async function loadLinks() {
     internalLinks.forEach((link) => {
       const backgroundStyle = link.style_bg ? `background-color:${escapeHtml(link.style_bg)};` : '';
       const icon = link.internal_target === 'freebies' ? 'bi-download' : 'bi-box-arrow-up-right';
-      const clickTrack = MODULES.analytics
-        ? `trackClick(${JSON.stringify(String(link.id))}, ${JSON.stringify(link.title || '')}); `
+      const trackAttributes = MODULES.analytics
+        ? ` data-track-id="${escapeHtml(String(link.id))}" data-track-title="${escapeHtml(link.title || '')}"`
         : '';
 
-      markup += `<div onclick="${clickTrack}navigateTo(${JSON.stringify(link.internal_target || '')})" class="link-card" style="${backgroundStyle}"><span class="link-icon"><i class="bi ${escapeHtml(link.icon)}"></i></span><span class="link-text">${escapeHtml(link.title)}</span><i class="bi ${icon}"></i></div>`;
+      markup += `<button type="button" class="link-card link-card-button" style="${backgroundStyle}" data-internal-target="${escapeHtml(link.internal_target || '')}"${trackAttributes}><span class="link-icon"><i class="bi ${escapeHtml(link.icon)}"></i></span><span class="link-text">${escapeHtml(link.title)}</span><i class="bi ${icon}"></i></button>`;
     });
 
     container.innerHTML = markup;
+    bindDynamicLinkActions(container);
   } catch (error) {
     console.error('Links error:', error);
     setPublicState('dynamic-links', 'Links unavailable', formatErrorMessage(error), 'error');
   }
+}
+
+function bindDynamicLinkActions(container) {
+  container.querySelectorAll('[data-track-id]').forEach((element) => {
+    element.addEventListener('click', () => {
+      trackClick(element.dataset.trackId || '', element.dataset.trackTitle || '');
+    });
+  });
+
+  container.querySelectorAll('[data-internal-target]').forEach((element) => {
+    element.addEventListener('click', () => {
+      navigateTo(element.dataset.internalTarget || '');
+    });
+  });
 }
 
 export async function fetchResources(table, containerId) {
