@@ -11,6 +11,7 @@ import {
   editItem,
   editLink,
   editTestimonial,
+  loadAnalytics,
   moveCollectionItem,
   resetLinkForm,
   saveLink,
@@ -117,6 +118,10 @@ function bindAdminControls() {
 
   document.getElementById('link-style-bg')?.addEventListener('change', (event) => {
     syncLinkStyleBg(event.target.value);
+  });
+
+  document.getElementById('analytics-range')?.addEventListener('change', () => {
+    void loadAnalytics();
   });
 }
 

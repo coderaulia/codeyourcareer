@@ -6,8 +6,14 @@ import {
   getModules,
   getResources,
   getSiteSettings,
-  recordLinkClick,
 } from '../api/data.js';
+import {
+  getAnalyticsContext,
+  initializeAnalyticsTracking,
+  trackAnalyticsEvent,
+  trackResourceClick,
+  trackSectionView,
+} from '../shared/analytics.js';
 import { MODULES } from '../shared/modules.js';
 import {
   escapeHtml,
@@ -131,6 +137,12 @@ export async function loadModules() {
     show('testimonials-section', MODULES.testimonials);
     show('contact-home-section', MODULES.contact);
 
+    if (MODULES.analytics) {
+      await initializeAnalyticsTracking();
+    }
+
+    await loadLinks();
+
     if (MODULES.testimonials) {
       await loadTestimonials();
     }
@@ -199,7 +211,11 @@ function bindDynamicLinkActions(container) {
 
   container.querySelectorAll('[data-internal-target]').forEach((element) => {
     element.addEventListener('click', () => {
-      navigateTo(element.dataset.internalTarget || '');
+      const target = element.dataset.internalTarget || '';
+      navigateTo(target);
+      if (MODULES.analytics) {
+        void trackSectionView(target);
+      }
     });
   });
 }
@@ -223,10 +239,19 @@ export async function fetchResources(table, containerId) {
         ? data
             .map(
               (item) =>
-                `<a href="${escapeHtml(item.link)}" target="_blank" rel="noreferrer" class="link-card link-card-resource"><div class="link-card-resource__content">${item.image_url ? `<img class="link-card-resource__image" src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.title)}">` : ''}<div><div class="fw-bold">${escapeHtml(item.title)}</div><div class="small text-muted">${escapeHtml(item.description || item.category || '')}</div></div></div><i class="bi bi-box-arrow-up-right"></i></a>`
+                `<a href="${escapeHtml(item.link)}" target="_blank" rel="noreferrer" class="link-card link-card-resource" data-resource-id="${escapeHtml(item.id)}"><div class="link-card-resource__content">${item.image_url ? `<img class="link-card-resource__image" src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.title)}">` : ''}<div><div class="fw-bold">${escapeHtml(item.title)}</div><div class="small text-muted">${escapeHtml(item.description || item.category || '')}</div></div></div><i class="bi bi-box-arrow-up-right"></i></a>`
             )
             .join('')
         : '';
+
+    if (MODULES.analytics && data?.length) {
+      container.querySelectorAll('[data-resource-id]').forEach((element) => {
+        element.addEventListener('click', () => {
+          const item = data.find((entry) => entry.id === element.dataset.resourceId);
+          void trackResourceClick(table, item);
+        });
+      });
+    }
 
     if (!data || !data.length) {
       setElementState(container, {
@@ -255,11 +280,18 @@ export async function handleFormSubmit(event) {
   setButtonBusy(submitButton, true, 'Processing request...');
 
   try {
+    const analyticsContext = MODULES.analytics
+      ? getAnalyticsContext('/#consultation')
+      : { analyticsSessionId: '', pagePath: '/#consultation' };
+
     await createBooking({
       name: document.getElementById('name').value,
       email: document.getElementById('email').value,
       topic: document.getElementById('topic').value,
       schedule: document.getElementById('schedule').value,
+      analyticsSessionId: analyticsContext.analyticsSessionId,
+      analyticsEnabled: MODULES.analytics,
+      pagePath: analyticsContext.pagePath,
     });
 
     showToast('Your consultation request is in. You will hear back soon.', {
@@ -316,10 +348,17 @@ export async function handleContactSubmit(event) {
   setButtonBusy(submitButton, true, 'Sending message...');
 
   try {
+    const analyticsContext = MODULES.analytics
+      ? getAnalyticsContext('/#contact')
+      : { analyticsSessionId: '', pagePath: '/#contact' };
+
     await createContactMessage({
       name: document.getElementById('contact-name').value,
       email: document.getElementById('contact-email').value,
       message: document.getElementById('contact-message').value,
+      analyticsSessionId: analyticsContext.analyticsSessionId,
+      analyticsEnabled: MODULES.analytics,
+      pagePath: analyticsContext.pagePath,
     });
 
     showToast('Your message has been sent. Thank you for reaching out.', {
@@ -339,7 +378,16 @@ export async function handleContactSubmit(event) {
 }
 
 export function trackClick(linkId, title) {
-  void recordLinkClick({ link_id: linkId, link_title: title });
+  if (!MODULES.analytics) {
+    return;
+  }
+
+  void trackAnalyticsEvent('link_click', {
+    link_id: linkId,
+    linkId,
+    link_title: title,
+    linkTitle: title,
+  });
 }
 
 export function initPublicPage() {
@@ -353,7 +401,11 @@ export function initPublicPage() {
       }
 
       event.preventDefault();
-      navigateTo(target.dataset.navTarget || '');
+      const nextTarget = target.dataset.navTarget || '';
+      navigateTo(nextTarget);
+      if (MODULES.analytics && nextTarget && nextTarget !== 'home') {
+        void trackSectionView(nextTarget);
+      }
     });
 
     document.getElementById('bookingForm')?.addEventListener('submit', (event) => {

@@ -67,7 +67,12 @@ export function createAdminCoreRoutes(deps) {
       getCount(deps, 'SELECT COUNT(*) AS count FROM links WHERE is_active = 1'),
       getCount(deps, 'SELECT COUNT(*) AS count FROM bookings WHERE status = ?', ['pending']),
       getCount(deps, 'SELECT COUNT(*) AS count FROM contact_messages WHERE is_read = 0'),
-      getCount(deps, 'SELECT COUNT(*) AS count FROM link_clicks'),
+      getCount(
+        deps,
+        `SELECT COUNT(*) AS count
+         FROM analytics_events
+         WHERE event_type IN ('link_click', 'resource_click')`
+      ),
     ]);
 
     response.json({ data: { links, bookings, messages, clicks } });

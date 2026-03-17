@@ -15,6 +15,7 @@
    - `https://api.codeyourcareer.my.id/api/version`
    - admin login works
    - image upload returns a public `/uploads/...` URL
+   - `POST /api/analytics/session` and `POST /api/analytics/events` succeed from the frontend origin
 
 ## Frontend deployment
 
@@ -25,6 +26,7 @@
    - homepage modules load from the API
    - `/adminpanel` login works
    - internal links, uploads, ordering, booking updates, and message read/unread all work
+   - analytics module shows visits, sources, and conversions after a test visit with UTM params
 
 ## Post-deploy checks
 

@@ -1,5 +1,21 @@
 import { apiRequest, uploadRequest } from './http.js';
 
+export async function createAnalyticsSession(payload) {
+  return apiRequest('/analytics/session', {
+    method: 'POST',
+    body: payload,
+    keepalive: true,
+  });
+}
+
+export async function recordAnalyticsEvent(payload) {
+  return apiRequest('/analytics/events', {
+    method: 'POST',
+    body: payload,
+    keepalive: true,
+  });
+}
+
 export async function getVersionInfo() {
   return apiRequest('/version');
 }
@@ -152,17 +168,28 @@ export async function deleteContactMessage(id) {
 }
 
 export function recordLinkClick(payload) {
-  return apiRequest('/link-clicks', {
-    method: 'POST',
-    body: {
-      linkId: payload.link_id,
-      linkTitle: payload.link_title,
-    },
+  return recordAnalyticsEvent({
+    sessionId: payload.sessionId,
+    eventType: 'link_click',
+    pagePath: payload.pagePath,
+    referrer: payload.referrer,
+    utmSource: payload.utmSource,
+    utmMedium: payload.utmMedium,
+    utmCampaign: payload.utmCampaign,
+    utmContent: payload.utmContent,
+    utmTerm: payload.utmTerm,
+    linkId: payload.link_id,
+    linkTitle: payload.link_title,
+    metadata: payload.metadata,
   });
 }
 
 export async function getRecentLinkClicks(limit = 100) {
   return apiRequest(`/admin/analytics/link-clicks?limit=${limit}`);
+}
+
+export async function getAnalyticsOverview(days = 30) {
+  return apiRequest(`/admin/analytics/overview?days=${days}`);
 }
 
 export async function getDashboardStats() {

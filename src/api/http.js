@@ -52,7 +52,7 @@ function syncSecurityState(data) {
 }
 
 export async function apiRequest(path, options = {}) {
-  const { body, headers = {}, method = 'GET', signal } = options;
+  const { body, headers = {}, method = 'GET', signal, keepalive = false } = options;
   const upperMethod = method.toUpperCase();
 
   let response;
@@ -67,6 +67,7 @@ export async function apiRequest(path, options = {}) {
       credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
       signal,
+      keepalive,
     });
   } catch {
     throw createApiError('Unable to reach the server. Please check your connection and try again.', 0);

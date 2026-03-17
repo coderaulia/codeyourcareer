@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
+import { ANALYTICS_CONVERSION_TYPES } from '../analytics.js';
 import {
   BOOKING_STATUSES,
   asyncHandler,
@@ -25,6 +26,18 @@ function normalizeTestimonialPayload(payload) {
     is_featured: payload.is_featured === false ? 0 : 1,
     display_order: optionalInteger(payload.display_order),
   };
+}
+
+function parseMetadata(value) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
 export function createAdminEngagementRoutes(deps) {
@@ -187,12 +200,172 @@ export function createAdminEngagementRoutes(deps) {
   );
 
   router.get(
+    '/analytics/overview',
+    asyncHandler(async (request, response) => {
+      const requestedDays = integerValue(request.query.days, 30);
+      const days = Math.max(1, Math.min(requestedDays || 30, 365));
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const [sessionsRow, pageViewsRow, linkClicksRow, resourceClicksRow, bookingsRow, contactsRow] = await Promise.all([
+        deps.one('SELECT COUNT(*) AS count FROM visitor_sessions WHERE started_at >= ?', [since]),
+        deps.one(
+          'SELECT COUNT(*) AS count FROM analytics_events WHERE event_type = ? AND created_at >= ?',
+          ['page_view', since]
+        ),
+        deps.one(
+          'SELECT COUNT(*) AS count FROM analytics_events WHERE event_type = ? AND created_at >= ?',
+          ['link_click', since]
+        ),
+        deps.one(
+          'SELECT COUNT(*) AS count FROM analytics_events WHERE event_type = ? AND created_at >= ?',
+          ['resource_click', since]
+        ),
+        deps.one(
+          'SELECT COUNT(*) AS count FROM analytics_events WHERE event_type = ? AND created_at >= ?',
+          ['booking_submitted', since]
+        ),
+        deps.one(
+          'SELECT COUNT(*) AS count FROM analytics_events WHERE event_type = ? AND created_at >= ?',
+          ['contact_submitted', since]
+        ),
+      ]);
+
+      const [sourceSessions, sourceLeads, campaigns, landingPages, contentClicks, conversions] = await Promise.all([
+        deps.query(
+          `SELECT source_label, medium_label, COUNT(*) AS sessions
+           FROM visitor_sessions
+           WHERE started_at >= ?
+           GROUP BY source_label, medium_label
+           ORDER BY sessions DESC, source_label ASC
+           LIMIT 8`,
+          [since]
+        ),
+        deps.query(
+          `SELECT source_label, COUNT(*) AS leads
+           FROM analytics_events
+           WHERE event_type IN ('booking_submitted', 'contact_submitted')
+             AND created_at >= ?
+           GROUP BY source_label
+           ORDER BY leads DESC, source_label ASC`,
+          [since]
+        ),
+        deps.query(
+          `SELECT COALESCE(NULLIF(campaign_label, ''), '(none)') AS campaign, COUNT(*) AS sessions
+           FROM visitor_sessions
+           WHERE started_at >= ?
+           GROUP BY COALESCE(NULLIF(campaign_label, ''), '(none)')
+           ORDER BY sessions DESC, campaign ASC
+           LIMIT 8`,
+          [since]
+        ),
+        deps.query(
+          `SELECT landing_path, COUNT(*) AS visits
+           FROM visitor_sessions
+           WHERE started_at >= ?
+           GROUP BY landing_path
+           ORDER BY visits DESC, landing_path ASC
+           LIMIT 8`,
+          [since]
+        ),
+        deps.query(
+          `SELECT
+             event_type,
+             COALESCE(resource_title, link_title, 'Untitled') AS label,
+             COALESCE(resource_table, '') AS resource_table,
+             COUNT(*) AS clicks
+           FROM analytics_events
+           WHERE created_at >= ?
+             AND event_type IN ('link_click', 'resource_click')
+           GROUP BY event_type, label, resource_table
+           ORDER BY clicks DESC, label ASC
+           LIMIT 10`,
+          [since]
+        ),
+        deps.query(
+          `SELECT event_type, page_path, source_label, medium_label, campaign_label, metadata_json, created_at
+           FROM analytics_events
+           WHERE event_type IN ('booking_submitted', 'contact_submitted')
+             AND created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT 10`,
+          [since]
+        ),
+      ]);
+
+      const totalSessions = Number(sessionsRow?.count || 0);
+      const totalBookings = Number(bookingsRow?.count || 0);
+      const totalContacts = Number(contactsRow?.count || 0);
+      const totalLeads = totalBookings + totalContacts;
+
+      const sourceLeadMap = new Map(
+        sourceLeads.map((row) => [String(row.source_label || 'direct'), Number(row.leads || 0)])
+      );
+
+      const topSources = sourceSessions.map((row) => {
+        const sessions = Number(row.sessions || 0);
+        const leads = sourceLeadMap.get(String(row.source_label || 'direct')) || 0;
+        return {
+          source: row.source_label || 'direct',
+          medium: row.medium_label || 'direct',
+          sessions,
+          leads,
+          conversionRate: sessions ? Number(((leads / sessions) * 100).toFixed(1)) : 0,
+        };
+      });
+
+      response.json({
+        data: {
+          rangeDays: days,
+          summary: {
+            visits: totalSessions,
+            pageViews: Number(pageViewsRow?.count || 0),
+            linkClicks: Number(linkClicksRow?.count || 0),
+            resourceClicks: Number(resourceClicksRow?.count || 0),
+            bookings: totalBookings,
+            contacts: totalContacts,
+            leads: totalLeads,
+            conversionRate: totalSessions ? Number(((totalLeads / totalSessions) * 100).toFixed(1)) : 0,
+          },
+          topSources,
+          campaigns: campaigns.map((row) => ({
+            campaign: row.campaign,
+            sessions: Number(row.sessions || 0),
+          })),
+          landingPages: landingPages.map((row) => ({
+            path: row.landing_path || '/',
+            visits: Number(row.visits || 0),
+          })),
+          contentClicks: contentClicks.map((row) => ({
+            label: row.label,
+            type: row.event_type,
+            table: row.resource_table || null,
+            clicks: Number(row.clicks || 0),
+          })),
+          recentConversions: conversions.map((row) => ({
+            type: ANALYTICS_CONVERSION_TYPES.has(row.event_type) ? row.event_type : 'conversion',
+            pagePath: row.page_path || '/',
+            source: row.source_label || 'direct',
+            medium: row.medium_label || 'direct',
+            campaign: row.campaign_label || null,
+            metadata: parseMetadata(row.metadata_json),
+            createdAt: row.created_at,
+          })),
+        },
+      });
+    })
+  );
+
+  router.get(
     '/analytics/link-clicks',
     asyncHandler(async (request, response) => {
-      const limit = integerValue(request.query.limit, 100);
+      const limit = Math.max(1, Math.min(integerValue(request.query.limit, 100), 500));
       const rows = await deps.query(
-        'SELECT link_title, clicked_at FROM link_clicks ORDER BY clicked_at DESC LIMIT ?',
-        [limit > 0 ? limit : 100]
+        `SELECT link_title, page_path, source_label, created_at
+         FROM analytics_events
+         WHERE event_type = 'link_click'
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        [limit]
       );
       response.json({ data: rows });
     })

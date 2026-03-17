@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
+import { ensureVisitorSession, trackAnalyticsEvent } from '../analytics.js';
+import { logWarn } from '../logger.js';
 import {
   assertResourceTable,
   asyncHandler,
@@ -10,6 +12,19 @@ import {
   requiredEmail,
   requiredText,
 } from './shared.js';
+
+async function captureAnalyticsEventSafely(deps, request, payload) {
+  try {
+    await trackAnalyticsEvent(deps, request, payload);
+  } catch (error) {
+    logWarn('analytics_capture_failed', {
+      requestId: request.requestId,
+      path: request.originalUrl,
+      eventType: payload.eventType,
+      message: error.message,
+    });
+  }
+}
 
 export function createPublicRoutes(deps) {
   const router = Router();
@@ -50,19 +65,86 @@ export function createPublicRoutes(deps) {
   );
 
   router.post(
+    '/analytics/session',
+    asyncHandler(async (request, response) => {
+      const session = await ensureVisitorSession(deps, request, {
+        sessionId: optionalText(request.body?.sessionId, 36),
+        pagePath: optionalText(request.body?.pagePath, 255) || '/',
+        referrer: optionalText(request.body?.referrer, 2048),
+        utmSource: optionalText(request.body?.utmSource, 255),
+        utmMedium: optionalText(request.body?.utmMedium, 255),
+        utmCampaign: optionalText(request.body?.utmCampaign, 255),
+        utmContent: optionalText(request.body?.utmContent, 255),
+        utmTerm: optionalText(request.body?.utmTerm, 255),
+      });
+
+      response.status(201).json({
+        data: {
+          success: true,
+          sessionId: session.id,
+          sourceLabel: session.sourceLabel,
+          mediumLabel: session.mediumLabel,
+          campaignLabel: session.campaignLabel,
+        },
+      });
+    })
+  );
+
+  router.post(
+    '/analytics/events',
+    asyncHandler(async (request, response) => {
+      const result = await trackAnalyticsEvent(deps, request, {
+        sessionId: optionalText(request.body?.sessionId, 36),
+        eventType: requiredText(request.body?.eventType, 'Analytics event type', 60),
+        pagePath: optionalText(request.body?.pagePath, 255) || '/',
+        referrer: optionalText(request.body?.referrer, 2048),
+        utmSource: optionalText(request.body?.utmSource, 255),
+        utmMedium: optionalText(request.body?.utmMedium, 255),
+        utmCampaign: optionalText(request.body?.utmCampaign, 255),
+        utmContent: optionalText(request.body?.utmContent, 255),
+        utmTerm: optionalText(request.body?.utmTerm, 255),
+        linkId: optionalText(request.body?.linkId, 36),
+        linkTitle: optionalText(request.body?.linkTitle, 255),
+        resourceTable: optionalText(request.body?.resourceTable, 40),
+        resourceId: optionalText(request.body?.resourceId, 36),
+        resourceTitle: optionalText(request.body?.resourceTitle, 255),
+        bookingId: optionalText(request.body?.bookingId, 36),
+        contactMessageId: optionalText(request.body?.contactMessageId, 36),
+        metadata: request.body?.metadata,
+      });
+
+      response.status(201).json({ data: { success: true, ...result } });
+    })
+  );
+
+  router.post(
     '/bookings',
     asyncHandler(async (request, response) => {
       const name = requiredText(request.body?.name, 'Name', 255);
       const email = requiredEmail(request.body?.email, deps.normalizeEmail);
       const topic = requiredText(request.body?.topic, 'Topic', 255);
       const schedule = requiredText(request.body?.schedule, 'Schedule');
+      const bookingId = randomUUID();
 
       await deps.query(
         'INSERT INTO bookings (id, name, email, topic, schedule, status) VALUES (?, ?, ?, ?, ?, ?)',
-        [randomUUID(), name, email, topic, schedule, 'pending']
+        [bookingId, name, email, topic, schedule, 'pending']
       );
 
-      response.status(201).json({ data: { success: true } });
+      if (request.body?.analyticsEnabled) {
+        await captureAnalyticsEventSafely(deps, request, {
+          sessionId: optionalText(request.body?.analyticsSessionId, 36),
+          eventType: 'booking_submitted',
+          pagePath: optionalText(request.body?.pagePath, 255) || '/#consultation',
+          bookingId,
+          metadata: {
+            topic,
+            schedule,
+          },
+        });
+      }
+
+      response.status(201).json({ data: { success: true, id: bookingId } });
     })
   );
 
@@ -82,26 +164,46 @@ export function createPublicRoutes(deps) {
       const name = requiredText(request.body?.name, 'Name', 255);
       const email = requiredEmail(request.body?.email, deps.normalizeEmail);
       const message = requiredText(request.body?.message, 'Message', 2000);
+      const messageId = randomUUID();
 
       await deps.query(
         'INSERT INTO contact_messages (id, name, email, message, is_read) VALUES (?, ?, ?, ?, ?)',
-        [randomUUID(), name, email, message, 0]
+        [messageId, name, email, message, 0]
       );
 
-      response.status(201).json({ data: { success: true } });
+      if (request.body?.analyticsEnabled) {
+        await captureAnalyticsEventSafely(deps, request, {
+          sessionId: optionalText(request.body?.analyticsSessionId, 36),
+          eventType: 'contact_submitted',
+          pagePath: optionalText(request.body?.pagePath, 255) || '/#contact',
+          contactMessageId: messageId,
+          metadata: {
+            messageLength: message.length,
+          },
+        });
+      }
+
+      response.status(201).json({ data: { success: true, id: messageId } });
     })
   );
 
   router.post(
     '/link-clicks',
     asyncHandler(async (request, response) => {
-      const linkId = optionalText(request.body?.linkId, 36);
-      const linkTitle = optionalText(request.body?.linkTitle, 255);
-
-      await deps.query(
-        'INSERT INTO link_clicks (id, link_id, link_title) VALUES (?, ?, ?)',
-        [randomUUID(), linkId, linkTitle]
-      );
+      await trackAnalyticsEvent(deps, request, {
+        sessionId: optionalText(request.body?.sessionId, 36),
+        eventType: 'link_click',
+        pagePath: optionalText(request.body?.pagePath, 255) || '/',
+        referrer: optionalText(request.body?.referrer, 2048),
+        utmSource: optionalText(request.body?.utmSource, 255),
+        utmMedium: optionalText(request.body?.utmMedium, 255),
+        utmCampaign: optionalText(request.body?.utmCampaign, 255),
+        utmContent: optionalText(request.body?.utmContent, 255),
+        utmTerm: optionalText(request.body?.utmTerm, 255),
+        linkId: optionalText(request.body?.linkId, 36),
+        linkTitle: optionalText(request.body?.linkTitle, 255),
+        metadata: request.body?.metadata,
+      });
 
       response.status(201).json({ data: { success: true } });
     })

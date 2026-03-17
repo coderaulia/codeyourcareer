@@ -85,10 +85,152 @@ function createClient(baseUrl) {
 async function startServer(overrides = {}) {
   let sessionVersion = 1;
   const passwordHash = await bcrypt.hash('correct horse battery staple', 4);
+  const analyticsState = {
+    visitorSessions: [],
+    analyticsEvents: [],
+    linkClicks: [],
+  };
+
+  const defaultOne = async (sql, params = []) => {
+    if (sql.startsWith('SELECT * FROM visitor_sessions WHERE id = ?')) {
+      return analyticsState.visitorSessions.find((item) => item.id === params[0]) || null;
+    }
+
+    return null;
+  };
+
+  const defaultQuery = async (sql, params = []) => {
+    if (sql.startsWith('INSERT INTO visitor_sessions')) {
+      const [
+        id,
+        landingPath,
+        lastPath,
+        landingReferrer,
+        lastReferrer,
+        referrerHost,
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        utmContent,
+        utmTerm,
+        sourceLabel,
+        mediumLabel,
+        campaignLabel,
+        browser,
+        os,
+        deviceType,
+        countryCode,
+        isBot,
+      ] = params;
+
+      analyticsState.visitorSessions.push({
+        id,
+        landing_path: landingPath,
+        last_path: lastPath,
+        landing_referrer: landingReferrer,
+        last_referrer: lastReferrer,
+        referrer_host: referrerHost,
+        utm_source: utmSource,
+        utm_medium: utmMedium,
+        utm_campaign: utmCampaign,
+        utm_content: utmContent,
+        utm_term: utmTerm,
+        source_label: sourceLabel,
+        medium_label: mediumLabel,
+        campaign_label: campaignLabel,
+        browser,
+        os,
+        device_type: deviceType,
+        country_code: countryCode,
+        is_bot: isBot,
+      });
+      return [];
+    }
+
+    if (sql.startsWith('UPDATE visitor_sessions')) {
+      const sessionId = params[params.length - 1];
+      const session = analyticsState.visitorSessions.find((item) => item.id === sessionId);
+      if (session) {
+        [
+          session.landing_path,
+          session.last_path,
+          session.landing_referrer,
+          session.last_referrer,
+          session.referrer_host,
+          session.utm_source,
+          session.utm_medium,
+          session.utm_campaign,
+          session.utm_content,
+          session.utm_term,
+          session.source_label,
+          session.medium_label,
+          session.campaign_label,
+          session.browser,
+          session.os,
+          session.device_type,
+          session.country_code,
+          session.is_bot,
+        ] = params.slice(0, 18);
+      }
+      return [];
+    }
+
+    if (sql.startsWith('INSERT INTO analytics_events')) {
+      const [
+        id,
+        sessionId,
+        eventType,
+        pagePath,
+        linkId,
+        linkTitle,
+        resourceTable,
+        resourceId,
+        resourceTitle,
+        bookingId,
+        contactMessageId,
+        sourceLabel,
+        mediumLabel,
+        campaignLabel,
+        metadataJson,
+      ] = params;
+
+      analyticsState.analyticsEvents.push({
+        id,
+        session_id: sessionId,
+        event_type: eventType,
+        page_path: pagePath,
+        link_id: linkId,
+        link_title: linkTitle,
+        resource_table: resourceTable,
+        resource_id: resourceId,
+        resource_title: resourceTitle,
+        booking_id: bookingId,
+        contact_message_id: contactMessageId,
+        source_label: sourceLabel,
+        medium_label: mediumLabel,
+        campaign_label: campaignLabel,
+        metadata_json: metadataJson,
+      });
+      return [];
+    }
+
+    if (sql.startsWith('INSERT INTO link_clicks')) {
+      const [id, linkId, linkTitle] = params;
+      analyticsState.linkClicks.push({
+        id,
+        link_id: linkId,
+        link_title: linkTitle,
+      });
+      return [];
+    }
+
+    return [];
+  };
 
   const { app } = createApp({
     distExists: false,
     sessionSecret: 'test-session-secret',
+    uploadDir: 'storage/uploads-test',
     allowedOrigins: new Set(['https://admin.example.test']),
     pingDatabase: async () => true,
     findAdminUserByEmail: async (email) =>
@@ -108,13 +250,15 @@ async function startServer(overrides = {}) {
       sessionVersion += 1;
       return sessionVersion;
     },
-    query: async () => [],
-    one: async () => null,
-    transaction: async (callback) =>
-      callback({
-        query: async () => [],
-        one: async () => null,
-      }),
+    query: overrides.query || defaultQuery,
+    one: overrides.one || defaultOne,
+    transaction:
+      overrides.transaction ||
+      (async (callback) =>
+        callback({
+          query: defaultQuery,
+          one: defaultOne,
+        })),
     ...overrides,
   });
 
@@ -124,6 +268,7 @@ async function startServer(overrides = {}) {
 
   return {
     baseUrl: `http://127.0.0.1:${server.address().port}`,
+    analyticsState,
     close: () => new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))),
   };
 }
@@ -203,6 +348,51 @@ await runTest('login rate limiting returns 429 after repeated failures', async (
     }
 
     assert.equal(status, 429);
+  } finally {
+    await harness.close();
+  }
+});
+
+await runTest('analytics session init and click tracking keep source attribution', async () => {
+  const harness = await startServer();
+  const client = createClient(harness.baseUrl);
+  const sessionId = '11111111-1111-4111-8111-111111111111';
+
+  try {
+    const sessionResponse = await client.request('/api/analytics/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId,
+        pagePath: '/',
+        utmSource: 'instagram',
+        utmMedium: 'social',
+        utmCampaign: 'march-launch',
+      }),
+    });
+
+    assert.equal(sessionResponse.status, 201);
+    const sessionPayload = await sessionResponse.json();
+    assert.equal(sessionPayload.data.sessionId, sessionId);
+    assert.equal(sessionPayload.data.sourceLabel, 'instagram');
+
+    const eventResponse = await client.request('/api/analytics/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId,
+        eventType: 'link_click',
+        pagePath: '/',
+        linkTitle: 'Book a Career Call',
+      }),
+    });
+
+    assert.equal(eventResponse.status, 201);
+    assert.equal(harness.analyticsState.visitorSessions.length, 1);
+    assert.equal(harness.analyticsState.analyticsEvents.length, 1);
+    assert.equal(harness.analyticsState.analyticsEvents[0].event_type, 'link_click');
+    assert.equal(harness.analyticsState.analyticsEvents[0].source_label, 'instagram');
+    assert.equal(harness.analyticsState.linkClicks.length, 1);
   } finally {
     await harness.close();
   }

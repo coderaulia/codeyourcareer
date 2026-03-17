@@ -7,9 +7,9 @@ import {
   getAllLinks,
   getBookings,
   getContactMessages,
+  getAnalyticsOverview,
   getDashboardStats,
   getModules,
-  getRecentLinkClicks,
   getResources,
   getSiteSettings,
   getTestimonials,
@@ -1052,37 +1052,101 @@ export async function deleteMessage(id) {
 }
 
 export async function loadAnalytics() {
-  setListState('analytics-data', 'Loading analytics', 'Summarising your recent link clicks...');
+  const days = Number.parseInt(getById('analytics-range')?.value || '30', 10) || 30;
+  setListState('analytics-data', 'Loading analytics', 'Building your traffic and conversion report...');
 
   try {
-    const data = await getRecentLinkClicks();
+    const data = await getAnalyticsOverview(days);
     const analyticsElement = getById('analytics-data');
     if (!analyticsElement) {
       return;
     }
 
-    if (!data || !data.length) {
-      setListState('analytics-data', 'No click data yet', 'Analytics will populate once visitors start clicking links.');
+    const summary = data?.summary;
+    if (!summary) {
+      setListState('analytics-data', 'No analytics yet', 'Traffic insights will appear once visitors start engaging.');
       return;
     }
 
-    const counts = {};
-    data.forEach((item) => {
-      const title = item.link_title || 'Unknown';
-      counts[title] = (counts[title] || 0) + 1;
-    });
+    const totalClicks = Number(summary.linkClicks || 0) + Number(summary.resourceClicks || 0);
+    const topSourceMax = Math.max(...(data.topSources || []).map((item) => Number(item.sessions || 0)), 1);
+    const topContentMax = Math.max(...(data.contentClicks || []).map((item) => Number(item.clicks || 0)), 1);
 
-    const sortedCounts = Object.entries(counts).sort((left, right) => right[1] - left[1]);
-
-    analyticsElement.innerHTML =
-      '<h6 class="fw-bold small mb-2">Top Clicked Links (last 100)</h6>' +
-      sortedCounts
-        .map(([title, count]) => {
-          const percentage = Math.round((count / data.length) * 100);
-          return `<div class="mb-2"><div class="d-flex justify-content-between small"><span>${escapeHtml(title)}</span><strong>${count}</strong></div><div class="progress" style="height:6px"><div class="progress-bar bg-dark" style="width:${percentage}%"></div></div></div>`;
-        })
-        .join('') +
-      `<div class="text-muted small mt-3">Total clicks tracked: ${data.length}</div>`;
+    analyticsElement.innerHTML = `
+      <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6"><div class="p-3 border rounded bg-light"><div class="small text-muted">Visits</div><div class="fs-4 fw-bold">${summary.visits}</div></div></div>
+        <div class="col-md-3 col-6"><div class="p-3 border rounded bg-light"><div class="small text-muted">Page Views</div><div class="fs-4 fw-bold">${summary.pageViews}</div></div></div>
+        <div class="col-md-3 col-6"><div class="p-3 border rounded bg-light"><div class="small text-muted">Tracked Clicks</div><div class="fs-4 fw-bold">${totalClicks}</div><div class="small text-muted">${summary.linkClicks} links / ${summary.resourceClicks} resources</div></div></div>
+        <div class="col-md-3 col-6"><div class="p-3 border rounded bg-light"><div class="small text-muted">Leads</div><div class="fs-4 fw-bold">${summary.leads}</div><div class="small text-muted">${summary.bookings} bookings / ${summary.contacts} contacts</div></div></div>
+      </div>
+      <div class="p-3 border rounded mb-4">
+        <div class="small text-muted mb-1">Conversion Rate</div>
+        <div class="fs-3 fw-bold">${summary.conversionRate}%</div>
+        <div class="small text-muted">Based on visits tracked in the last ${escapeHtml(String(data.rangeDays || days))} days.</div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <h6 class="fw-bold small mb-2">Top Traffic Sources</h6>
+          ${(data.topSources || []).length
+            ? data.topSources
+                .map((item) => {
+                  const width = Math.max(6, Math.round((Number(item.sessions || 0) / topSourceMax) * 100));
+                  return `<div class="mb-3"><div class="d-flex justify-content-between small gap-2"><span><strong>${escapeHtml(item.source)}</strong> <span class="text-muted">/ ${escapeHtml(item.medium)}</span></span><span>${item.sessions} visits - ${item.leads} leads</span></div><div class="progress" style="height:6px"><div class="progress-bar bg-dark" style="width:${width}%"></div></div><div class="small text-muted mt-1">${item.conversionRate}% conversion</div></div>`;
+                })
+                .join('')
+            : '<div class="text-muted small">No sources tracked yet.</div>'}
+        </div>
+        <div class="col-lg-6">
+          <h6 class="fw-bold small mb-2">Top Campaigns</h6>
+          ${(data.campaigns || []).length
+            ? data.campaigns
+                .map(
+                  (item) =>
+                    `<div class="d-flex justify-content-between small border-bottom py-2"><span>${escapeHtml(item.campaign)}</span><strong>${item.sessions}</strong></div>`
+                )
+                .join('')
+            : '<div class="text-muted small">No campaign tags detected yet.</div>'}
+        </div>
+        <div class="col-lg-6">
+          <h6 class="fw-bold small mb-2">Top Landing Pages</h6>
+          ${(data.landingPages || []).length
+            ? data.landingPages
+                .map(
+                  (item) =>
+                    `<div class="d-flex justify-content-between small border-bottom py-2"><span>${escapeHtml(item.path)}</span><strong>${item.visits}</strong></div>`
+                )
+                .join('')
+            : '<div class="text-muted small">No landing-page data yet.</div>'}
+        </div>
+        <div class="col-lg-6">
+          <h6 class="fw-bold small mb-2">Top Clicked Content</h6>
+          ${(data.contentClicks || []).length
+            ? data.contentClicks
+                .map((item) => {
+                  const width = Math.max(6, Math.round((Number(item.clicks || 0) / topContentMax) * 100));
+                  const badge = item.type === 'resource_click' ? 'Resource' : 'Link';
+                  return `<div class="mb-3"><div class="d-flex justify-content-between small gap-2"><span>${escapeHtml(item.label)} <span class="badge bg-light text-dark border">${badge}</span></span><strong>${item.clicks}</strong></div><div class="progress" style="height:6px"><div class="progress-bar bg-secondary" style="width:${width}%"></div></div></div>`;
+                })
+                .join('')
+            : '<div class="text-muted small">No click data yet.</div>'}
+        </div>
+        <div class="col-12">
+          <h6 class="fw-bold small mb-2">Recent Conversions</h6>
+          ${(data.recentConversions || []).length
+            ? data.recentConversions
+                .map((item) => {
+                  const badge = item.type === 'booking_submitted' ? 'Booking' : 'Contact';
+                  const detail =
+                    item.type === 'booking_submitted'
+                      ? item.metadata?.topic || 'Consultation'
+                      : `${item.metadata?.messageLength || 0} chars`;
+                  return `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between gap-3"><div><span class="badge bg-dark">${badge}</span> <strong>${escapeHtml(item.source)}</strong> <span class="text-muted">/ ${escapeHtml(item.medium)}</span>${item.campaign ? ` <span class="text-muted">(${escapeHtml(item.campaign)})</span>` : ''}<div class="text-muted">${escapeHtml(item.pagePath || '/')} - ${escapeHtml(detail)}</div></div><div class="text-muted">${formatDate(item.createdAt)}</div></div></div>`;
+                })
+                .join('')
+            : '<div class="text-muted small">No conversions recorded yet.</div>'}
+        </div>
+      </div>
+    `;
   } catch (error) {
     reportLoadFailure('Analytics', error, 'analytics-data', 'Analytics unavailable');
   }
