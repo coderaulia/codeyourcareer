@@ -18,6 +18,8 @@ import {
   showToast,
 } from '../shared/utils.js';
 
+let publicUiBound = false;
+
 function setPublicState(id, title, message, tone = 'muted') {
   setElementState(document.getElementById(id), {
     tone,
@@ -221,7 +223,7 @@ export async function fetchResources(table, containerId) {
         ? data
             .map(
               (item) =>
-                `<a href="${escapeHtml(item.link)}" target="_blank" rel="noreferrer" class="link-card"><div><div class="fw-bold">${escapeHtml(item.title)}</div><div class="small text-muted">${escapeHtml(item.description || item.category || '')}</div></div><i class="bi bi-box-arrow-up-right"></i></a>`
+                `<a href="${escapeHtml(item.link)}" target="_blank" rel="noreferrer" class="link-card link-card-resource"><div class="link-card-resource__content">${item.image_url ? `<img class="link-card-resource__image" src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.title)}">` : ''}<div><div class="fw-bold">${escapeHtml(item.title)}</div><div class="small text-muted">${escapeHtml(item.description || item.category || '')}</div></div></div><i class="bi bi-box-arrow-up-right"></i></a>`
             )
             .join('')
         : '';
@@ -296,11 +298,7 @@ export async function loadTestimonials() {
     container.innerHTML = data
       .map(
         (testimonial) =>
-          `<div class="testimonial-card"><div class="stars">${'&#9733;'.repeat(testimonial.rating)}${'&#9734;'.repeat(
-            5 - testimonial.rating
-          )}</div><div class="quote">"${escapeHtml(testimonial.content)}"</div><div class="author">${escapeHtml(
-            testimonial.name
-          )}</div>${testimonial.role ? `<div class="role">${escapeHtml(testimonial.role)}</div>` : ''}</div>`
+          `<div class="testimonial-card">${testimonial.image_url ? `<div class="testimonial-card__media"><img class="testimonial-card__avatar" src="${escapeHtml(testimonial.image_url)}" alt="${escapeHtml(testimonial.name)}"></div>` : ''}<div class="stars">${'&#9733;'.repeat(testimonial.rating)}${'&#9734;'.repeat(5 - testimonial.rating)}</div><div class="quote">"${escapeHtml(testimonial.content)}"</div><div class="author">${escapeHtml(testimonial.name)}</div>${testimonial.role ? `<div class="role">${escapeHtml(testimonial.role)}</div>` : ''}</div>`
       )
       .join('');
   } catch {
@@ -345,6 +343,28 @@ export function trackClick(linkId, title) {
 }
 
 export function initPublicPage() {
+  if (!publicUiBound) {
+    publicUiBound = true;
+
+    document.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-nav-target]');
+      if (!target) {
+        return;
+      }
+
+      event.preventDefault();
+      navigateTo(target.dataset.navTarget || '');
+    });
+
+    document.getElementById('bookingForm')?.addEventListener('submit', (event) => {
+      void handleFormSubmit(event);
+    });
+
+    document.getElementById('contactForm')?.addEventListener('submit', (event) => {
+      void handleContactSubmit(event);
+    });
+  }
+
   const scheduleInput = document.getElementById('schedule');
   if (scheduleInput) {
     const now = new Date();

@@ -14,12 +14,16 @@ import {
   getSiteSettings,
   getTestimonials,
   getVersionInfo,
+  reorderCollection,
   saveLink as saveLinkData,
   saveResource as saveResourceData,
   saveTestimonial as saveTestimonialData,
+  setContactMessageRead,
   updateBookingConfirmation,
+  updateBookingStatus,
   updateModuleStatus,
   updateSiteSettings,
+  uploadImage,
 } from '../api/data.js';
 import {
   escapeHtml,
@@ -45,11 +49,11 @@ const adminState = {
   messages: [],
 };
 
+const DEFAULT_LINK_BG = '#f1f3f5';
+
 function getById(id) {
   return document.getElementById(id);
 }
-
-const DEFAULT_LINK_BG = '#f1f3f5';
 
 function normalizeHexColor(value) {
   const trimmed = String(value || '').trim();
@@ -112,8 +116,8 @@ function validateLinkPayload(payload, id = '') {
     invalidateField('link-title', 'Link title is required.');
   }
 
-  if (!payload.url) {
-    invalidateField('link-url', 'Link URL is required.');
+  if (payload.link_type === 'external' && !payload.url) {
+    invalidateField('link-url', 'Link URL is required for external links.');
   }
 
   if (payload.link_type === 'internal' && !payload.internal_target) {
@@ -199,6 +203,65 @@ function renderDashboardModules() {
         `<div class="d-flex align-items-center small border p-2 rounded bg-light"><i class="bi ${escapeHtml(moduleItem.icon)} me-2 text-primary"></i><span class="fw-bold">${escapeHtml(moduleItem.name)}</span></div>`
     )
     .join('');
+}
+
+function renderMoveButtons(collection, id, index, total) {
+  return `<div class="admin-order-actions"><button class="btn btn-link p-0 ${index === 0 ? 'disabled' : ''}" ${index === 0 ? 'disabled' : ''} type="button" data-action="move-collection" data-collection="${collection}" data-id="${id}" data-direction="up" title="Move up"><i class="bi bi-arrow-up"></i></button><button class="btn btn-link p-0 ${index === total - 1 ? 'disabled' : ''}" ${index === total - 1 ? 'disabled' : ''} type="button" data-action="move-collection" data-collection="${collection}" data-id="${id}" data-direction="down" title="Move down"><i class="bi bi-arrow-down"></i></button></div>`;
+}
+
+function getCollectionItems(collection) {
+  if (collection === 'links') {
+    return adminState.links;
+  }
+
+  if (collection === 'freebies' || collection === 'gear') {
+    return adminState.resources[collection];
+  }
+
+  if (collection === 'testimonials') {
+    return adminState.testimonials;
+  }
+
+  return [];
+}
+
+function findLinkById(id) {
+  return adminState.links.find((item) => item.id === id) || null;
+}
+
+function findResourceById(table, id) {
+  return (adminState.resources[table] || []).find((item) => item.id === id) || null;
+}
+
+function findBookingById(id) {
+  return adminState.bookings.find((item) => item.id === id) || null;
+}
+
+function findTestimonialById(id) {
+  return adminState.testimonials.find((item) => item.id === id) || null;
+}
+
+function resolveResourcePayload(table, id = '') {
+  const existingItem = (adminState.resources[table] || []).find((item) => item.id === id);
+  return {
+    title: getById('form-title')?.value?.trim() || '',
+    link: getById('form-link')?.value?.trim() || '',
+    image_url: getById('form-image')?.value?.trim() || null,
+    display_order: existingItem?.display_order ?? (adminState.resources[table]?.length || 0),
+  };
+}
+
+function resolveTestimonialPayload(id = '') {
+  const existingItem = adminState.testimonials.find((item) => item.id === id);
+  return {
+    name: getById('testi-name')?.value?.trim() || '',
+    role: getById('testi-role')?.value?.trim() || '',
+    content: getById('testi-content')?.value?.trim() || '',
+    rating: Number.parseInt(getById('testi-rating')?.value || '5', 10),
+    image_url: getById('testi-image')?.value?.trim() || null,
+    is_featured: true,
+    display_order: existingItem?.display_order ?? adminState.testimonials.length,
+  };
 }
 
 export function switchAdminTab(button, tabName) {
@@ -403,18 +466,7 @@ export async function refreshModulesAdmin() {
       } else {
         container.innerHTML = adminState.modules
           .map(
-            (moduleItem) => `
-              <div class="module-toggle-card ${moduleItem.is_enabled ? 'enabled' : ''}">
-                <div>
-                  <i class="bi ${escapeHtml(moduleItem.icon)} me-2"></i>
-                  <strong>${escapeHtml(moduleItem.name)}</strong>
-                  <div class="text-muted small">${escapeHtml(moduleItem.description || '')}</div>
-                </div>
-                <label class="toggle-switch">
-                  <input type="checkbox" ${moduleItem.is_enabled ? 'checked' : ''} onchange="toggleModule('${moduleItem.slug}', this.checked)">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>`
+            (moduleItem) => `<div class="module-toggle-card ${moduleItem.is_enabled ? 'enabled' : ''}"><div><i class="bi ${escapeHtml(moduleItem.icon)} me-2"></i><strong>${escapeHtml(moduleItem.name)}</strong><div class="text-muted small">${escapeHtml(moduleItem.description || '')}</div></div><label class="toggle-switch"><input type="checkbox" ${moduleItem.is_enabled ? 'checked' : ''} data-action="toggle-module" data-slug="${escapeHtml(moduleItem.slug)}"><span class="toggle-slider"></span></label></div>`
           )
           .join('');
       }
@@ -474,12 +526,13 @@ export async function refreshAdminLinks() {
 
     listElement.innerHTML = adminState.links.length
       ? adminState.links
-          .map((link) => {
+          .map((link, index) => {
             const badge = link.is_active
               ? '<span class="badge bg-success" style="font-size:0.6rem">ON</span>'
               : '<span class="badge bg-secondary" style="font-size:0.6rem">OFF</span>';
             const typeIcon = link.link_type === 'external' ? 'bi-box-arrow-up-right' : 'bi-folder2-open';
-            return `<div class="d-flex justify-content-between align-items-center border-bottom py-2 small"><div><i class="bi ${typeIcon} me-1"></i><strong>${escapeHtml(link.title)}</strong> ${badge}<div class="text-muted" style="font-size:0.7rem">${escapeHtml(link.url)}</div></div><div><button class="btn btn-link p-0 me-2" onclick='editLink(${JSON.stringify(link).replace(/'/g, '&#39;')})'>Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteLink('${link.id}')">Delete</button></div></div>`;
+            const subtitle = link.link_type === 'internal' ? `${link.internal_target || 'internal'} - ${link.url}` : link.url;
+            return `<div class="admin-list-row"><div class="admin-list-main">${renderMoveButtons('links', link.id, index, adminState.links.length)}<div><i class="bi ${typeIcon} me-1"></i><strong>${escapeHtml(link.title)}</strong> ${badge}<div class="text-muted" style="font-size:0.7rem">${escapeHtml(subtitle || '')}</div></div></div><div class="admin-list-actions"><button class="btn btn-link p-0 me-2" type="button" data-action="edit-link" data-id="${link.id}">Edit</button><button class="btn btn-link text-danger p-0" type="button" data-action="delete-link" data-id="${link.id}">Delete</button></div></div>`;
           })
           .join('')
       : '';
@@ -498,16 +551,18 @@ export async function saveLink(event) {
   setButtonBusy(submitButton, true, 'Saving link...');
 
   const id = getById('link-id')?.value || '';
+  const linkType = getById('link-type')?.value || 'external';
+  const internalTarget = getById('link-internal-target')?.value || null;
   const payload = {
     title: getById('link-title')?.value?.trim() || '',
-    url: getById('link-url')?.value?.trim() || '',
+    url:
+      linkType === 'internal'
+        ? `#${internalTarget || ''}`
+        : getById('link-url')?.value?.trim() || '',
     icon: getById('link-icon')?.value?.trim() || 'bi-link-45deg',
-    link_type: getById('link-type')?.value || 'external',
-    internal_target: getById('link-internal-target')?.value || null,
-    style_bg:
-      (getById('link-type')?.value || 'external') === 'internal'
-        ? normalizeHexColor(getById('link-style-bg')?.value) || null
-        : null,
+    link_type: linkType,
+    internal_target: internalTarget,
+    style_bg: linkType === 'internal' ? normalizeHexColor(getById('link-style-bg')?.value) || null : null,
     display_order: Number.parseInt(getById('link-order')?.value || '0', 10) || 0,
     is_active: Boolean(getById('link-active')?.checked),
   };
@@ -532,7 +587,12 @@ export async function saveLink(event) {
   }
 }
 
-export function editLink(link) {
+export function editLink(linkOrId) {
+  const link = typeof linkOrId === 'string' ? findLinkById(linkOrId) : linkOrId;
+  if (!link) {
+    return;
+  }
+
   getById('link-id').value = link.id;
   getById('link-title').value = link.title;
   getById('link-url').value = link.url;
@@ -619,8 +679,8 @@ async function refreshResourceTable(table) {
   listElement.innerHTML = adminState.resources[table].length
     ? adminState.resources[table]
         .map(
-          (item) =>
-            `<div class="d-flex justify-content-between border-bottom py-2 small"><span>${escapeHtml(item.title)}</span><div><button class="btn btn-link p-0 me-2" onclick="editItem('${table}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteItem('${table}','${item.id}')">Delete</button></div></div>`
+          (item, index) =>
+            `<div class="admin-list-row"><div class="admin-list-main">${renderMoveButtons(table, item.id, index, adminState.resources[table].length)}<div><strong>${escapeHtml(item.title)}</strong>${item.image_url ? ' <span class="badge bg-light text-dark border">Image</span>' : ''}<div class="text-muted" style="font-size:0.7rem">${escapeHtml(item.description || item.category || item.link)}</div></div></div><div class="admin-list-actions"><button class="btn btn-link p-0 me-2" type="button" data-action="edit-resource" data-table="${table}" data-id="${item.id}">Edit</button><button class="btn btn-link text-danger p-0" type="button" data-action="delete-resource" data-table="${table}" data-id="${item.id}">Delete</button></div></div>`
         )
         .join('')
     : '';
@@ -647,11 +707,7 @@ export async function saveResource(event) {
 
   const table = (getById('form-sheet')?.value || 'Freebies').toLowerCase();
   const id = getById('form-id')?.value || '';
-  const payload = {
-    title: getById('form-title')?.value?.trim() || '',
-    link: getById('form-link')?.value?.trim() || '',
-    display_order: 0,
-  };
+  const payload = resolveResourcePayload(table, id);
 
   if (table === 'freebies') {
     payload.description = getById('form-extra')?.value?.trim() || '';
@@ -664,6 +720,12 @@ export async function saveResource(event) {
     await saveResourceData(table, id || null, payload);
     getById('form-id').value = '';
     event.target.reset();
+    if (getById('form-image')) {
+      getById('form-image').value = '';
+    }
+    if (getById('form-image-file')) {
+      getById('form-image-file').value = '';
+    }
     await refreshResources();
     showToast(`${table === 'freebies' ? 'Freebie' : 'Gear item'} ${id ? 'updated' : 'saved'} successfully.`, {
       tone: 'success',
@@ -679,12 +741,20 @@ export async function saveResource(event) {
   }
 }
 
-export function editItem(table, item) {
+export function editItem(table, itemOrId) {
+  const item = typeof itemOrId === 'string' ? findResourceById(table, itemOrId) : itemOrId;
+  if (!item) {
+    return;
+  }
+
   getById('form-sheet').value = table.charAt(0).toUpperCase() + table.slice(1);
   getById('form-id').value = item.id;
   getById('form-title').value = item.title;
   getById('form-link').value = item.link;
   getById('form-extra').value = item.description || item.category || '';
+  if (getById('form-image')) {
+    getById('form-image').value = item.image_url || '';
+  }
 }
 
 export async function deleteItem(table, id) {
@@ -718,6 +788,40 @@ export async function deleteItem(table, id) {
   }
 }
 
+function renderBookingStatusBadge(status) {
+  const toneMap = {
+    pending: 'bg-warning text-dark',
+    confirmed: 'bg-info text-dark',
+    completed: 'bg-success',
+    cancelled: 'bg-secondary',
+    no_show: 'bg-danger',
+  };
+
+  return `<span class="badge ${toneMap[status] || 'bg-light text-dark border'}">${escapeHtml((status || 'pending').replace('_', ' '))}</span>`;
+}
+
+function renderBookingActions(booking) {
+  const actions = [];
+
+  if (booking.status === 'pending') {
+    actions.push(`<button class="btn btn-sm btn-outline-dark" type="button" data-action="confirm-booking" data-id="${booking.id}"><i class="bi bi-check-lg"></i> Confirm</button>`);
+    actions.push(`<button class="btn btn-sm btn-outline-secondary" type="button" data-action="set-booking-status" data-id="${booking.id}" data-status="cancelled">Cancel</button>`);
+    actions.push(`<button class="btn btn-sm btn-outline-danger" type="button" data-action="set-booking-status" data-id="${booking.id}" data-status="no_show">No show</button>`);
+  } else if (booking.status === 'confirmed') {
+    if (booking.meetlink) {
+      actions.push(`<a href="${escapeHtml(booking.meetlink)}" target="_blank" rel="noreferrer" class="btn btn-sm btn-success"><i class="bi bi-camera-video"></i> Meet</a>`);
+    }
+    actions.push(`<button class="btn btn-sm btn-outline-success" type="button" data-action="set-booking-status" data-id="${booking.id}" data-status="completed">Complete</button>`);
+    actions.push(`<button class="btn btn-sm btn-outline-secondary" type="button" data-action="set-booking-status" data-id="${booking.id}" data-status="cancelled">Cancel</button>`);
+    actions.push(`<button class="btn btn-sm btn-outline-danger" type="button" data-action="set-booking-status" data-id="${booking.id}" data-status="no_show">No show</button>`);
+  } else {
+    actions.push(`<button class="btn btn-sm btn-outline-dark" type="button" data-action="set-booking-status" data-id="${booking.id}" data-status="pending">Set pending</button>`);
+  }
+
+  actions.push(`<button class="btn btn-link text-danger p-0" style="font-size:0.75rem" type="button" data-action="delete-booking" data-id="${booking.id}">Delete</button>`);
+  return actions.join('');
+}
+
 export async function refreshBookings() {
   setListState('list-bookings', 'Loading bookings', 'Checking incoming consultation requests...');
 
@@ -735,21 +839,21 @@ export async function refreshBookings() {
     }
 
     listElement.innerHTML = adminState.bookings
-      .map((booking) => {
-        const meetAction = booking.meetlink
-          ? `<a href="${escapeHtml(booking.meetlink)}" target="_blank" rel="noreferrer" class="btn btn-sm btn-success fw-bold" style="font-size:0.7rem"><i class="bi bi-camera-video"></i> Meet</a>`
-          : `<button class="btn btn-sm btn-outline-dark" style="font-size:0.7rem" onclick="confirmBooking('${booking.id}','${escapeHtml(booking.name)}')"><i class="bi bi-check-lg"></i> Confirm</button>`;
-
-        return `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between align-items-center"><div><strong>${escapeHtml(booking.name)}</strong> <span class="badge bg-light text-dark border">${escapeHtml(booking.topic)}</span><div class="text-muted">${formatDate(booking.schedule)} - ${escapeHtml(booking.email)}</div></div><div class="d-flex flex-column gap-1 text-end">${meetAction}<button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteItem('bookings','${booking.id}')">Delete</button></div></div></div>`;
-      })
+      .map((booking) => `<div class="border-bottom py-2 small"><div class="d-flex justify-content-between align-items-start gap-3"><div><strong>${escapeHtml(booking.name)}</strong> ${renderBookingStatusBadge(booking.status)} <span class="badge bg-light text-dark border">${escapeHtml(booking.topic)}</span><div class="text-muted">${formatDate(booking.schedule)} - ${escapeHtml(booking.email)}</div>${booking.meetlink ? `<div class="text-muted" style="font-size:0.75rem">${escapeHtml(booking.meetlink)}</div>` : ''}</div><div class="d-flex flex-column gap-2 text-end">${renderBookingActions(booking)}</div></div></div>`)
       .join('');
   } catch (error) {
     reportLoadFailure('Bookings', error, 'list-bookings', 'Bookings unavailable');
   }
 }
 
-export async function confirmBooking(id, name) {
-  const meetLink = window.prompt(`Enter Meet link for ${name}:`, 'https://meet.google.com/');
+export async function confirmBooking(id, name, currentMeetLink = '') {
+  if (!name) {
+    const booking = findBookingById(id);
+    name = booking?.name || 'this booking';
+    currentMeetLink = booking?.meetlink || '';
+  }
+
+  const meetLink = window.prompt(`Enter Meet link for ${name}:`, currentMeetLink || 'https://meet.google.com/');
   if (!meetLink) {
     return;
   }
@@ -766,6 +870,23 @@ export async function confirmBooking(id, name) {
     showToast(formatErrorMessage(error, 'Unable to confirm the booking right now.'), {
       tone: 'error',
       title: 'Confirmation failed',
+    });
+  }
+}
+
+export async function setBookingStatusAction(id, status) {
+  try {
+    await updateBookingStatus(id, status);
+    await refreshBookings();
+    await refreshDashboard();
+    showToast(`Booking moved to ${status.replace('_', ' ')}.`, {
+      tone: 'success',
+      title: 'Booking updated',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to update the booking right now.'), {
+      tone: 'error',
+      title: 'Booking update failed',
     });
   }
 }
@@ -788,8 +909,7 @@ export async function refreshTestimonials() {
 
     listElement.innerHTML = adminState.testimonials
       .map(
-        (testimonial) =>
-          `<div class="d-flex justify-content-between border-bottom py-2 small"><div><strong>${escapeHtml(testimonial.name)}</strong> ${'&#9733;'.repeat(testimonial.rating)}<div class="text-muted">${escapeHtml(testimonial.content).substring(0, 80)}...</div></div><div><button class="btn btn-link p-0 me-2" onclick="editTestimonial(${JSON.stringify(testimonial).replace(/"/g, '&quot;')})">Edit</button><button class="btn btn-link text-danger p-0" onclick="deleteTestimonial('${testimonial.id}')">Delete</button></div></div>`
+        (testimonial, index) => `<div class="admin-list-row"><div class="admin-list-main">${renderMoveButtons('testimonials', testimonial.id, index, adminState.testimonials.length)}<div><strong>${escapeHtml(testimonial.name)}</strong> ${'&#9733;'.repeat(testimonial.rating)}${testimonial.image_url ? ' <span class="badge bg-light text-dark border">Image</span>' : ''}<div class="text-muted">${escapeHtml(testimonial.content).substring(0, 80)}...</div></div></div><div class="admin-list-actions"><button class="btn btn-link p-0 me-2" type="button" data-action="edit-testimonial" data-id="${testimonial.id}">Edit</button><button class="btn btn-link text-danger p-0" type="button" data-action="delete-testimonial" data-id="${testimonial.id}">Delete</button></div></div>`
       )
       .join('');
   } catch (error) {
@@ -803,20 +923,19 @@ export async function saveTestimonial(event) {
   setButtonBusy(submitButton, true, 'Saving testimonial...');
 
   const id = getById('testi-id')?.value || '';
-  const payload = {
-    name: getById('testi-name')?.value?.trim() || '',
-    role: getById('testi-role')?.value?.trim() || '',
-    content: getById('testi-content')?.value?.trim() || '',
-    rating: Number.parseInt(getById('testi-rating')?.value || '5', 10),
-    is_featured: true,
-    display_order: 0,
-  };
+  const payload = resolveTestimonialPayload(id);
 
   try {
     validateTestimonialPayload(payload, id);
     await saveTestimonialData(id || null, payload);
     getById('testi-id').value = '';
     event.target.reset();
+    if (getById('testi-image')) {
+      getById('testi-image').value = '';
+    }
+    if (getById('testi-image-file')) {
+      getById('testi-image-file').value = '';
+    }
     await refreshTestimonials();
     showToast(`Testimonial ${id ? 'updated' : 'saved'} successfully.`, {
       tone: 'success',
@@ -832,12 +951,20 @@ export async function saveTestimonial(event) {
   }
 }
 
-export function editTestimonial(testimonial) {
+export function editTestimonial(testimonialOrId) {
+  const testimonial = typeof testimonialOrId === 'string' ? findTestimonialById(testimonialOrId) : testimonialOrId;
+  if (!testimonial) {
+    return;
+  }
+
   getById('testi-id').value = testimonial.id;
   getById('testi-name').value = testimonial.name;
   getById('testi-role').value = testimonial.role || '';
   getById('testi-content').value = testimonial.content;
   getById('testi-rating').value = testimonial.rating;
+  if (getById('testi-image')) {
+    getById('testi-image').value = testimonial.image_url || '';
+  }
 }
 
 export async function deleteTestimonial(id) {
@@ -878,12 +1005,28 @@ export async function refreshMessages() {
 
     listElement.innerHTML = adminState.messages
       .map(
-        (message) =>
-          `<div class="border-bottom py-2 small ${message.is_read ? '' : 'fw-bold'}"><div class="d-flex justify-content-between"><div><strong>${escapeHtml(message.name)}</strong> <span class="text-muted">${escapeHtml(message.email)}</span><div>${escapeHtml(message.message)}</div><div class="text-muted" style="font-size:0.7rem">${formatDate(message.created_at)}</div></div><div><button class="btn btn-link text-danger p-0" style="font-size:0.7rem" onclick="deleteMessage('${message.id}')">Delete</button></div></div></div>`
+        (message) => `<div class="border-bottom py-2 small ${message.is_read ? '' : 'fw-bold'}"><div class="d-flex justify-content-between gap-3"><div><strong>${escapeHtml(message.name)}</strong> <span class="text-muted">${escapeHtml(message.email)}</span>${message.is_read ? ' <span class="badge bg-light text-dark border">Read</span>' : ' <span class="badge bg-warning text-dark">Unread</span>'}<div>${escapeHtml(message.message)}</div><div class="text-muted" style="font-size:0.7rem">${formatDate(message.created_at)}</div></div><div class="d-flex flex-column align-items-end gap-2"><button class="btn btn-link p-0" type="button" data-action="toggle-message-read" data-id="${message.id}" data-next-state="${message.is_read ? 'false' : 'true'}">${message.is_read ? 'Mark unread' : 'Mark read'}</button><button class="btn btn-link text-danger p-0" type="button" data-action="delete-message" data-id="${message.id}">Delete</button></div></div></div>`
       )
       .join('');
   } catch (error) {
     reportLoadFailure('Messages', error, 'list-messages', 'Messages unavailable');
+  }
+}
+
+export async function toggleMessageRead(id, nextState) {
+  try {
+    await setContactMessageRead(id, nextState);
+    await refreshMessages();
+    await refreshDashboard();
+    showToast(`Message marked as ${nextState ? 'read' : 'unread'}.`, {
+      tone: 'success',
+      title: 'Inbox updated',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to update the message right now.'), {
+      tone: 'error',
+      title: 'Message update failed',
+    });
   }
 }
 
@@ -942,5 +1085,96 @@ export async function loadAnalytics() {
       `<div class="text-muted small mt-3">Total clicks tracked: ${data.length}</div>`;
   } catch (error) {
     reportLoadFailure('Analytics', error, 'analytics-data', 'Analytics unavailable');
+  }
+}
+
+async function uploadImageToField(fileInputId, targetFieldId, successMessage) {
+  const fileInput = getById(fileInputId);
+  const targetField = getById(targetFieldId);
+  const file = fileInput?.files?.[0];
+
+  if (!file || !targetField) {
+    throw new Error('Choose an image to upload first.');
+  }
+
+  const result = await uploadImage(file);
+  targetField.value = result?.url || '';
+  fileInput.value = '';
+  showToast(successMessage, {
+    tone: 'success',
+    title: 'Upload complete',
+  });
+}
+
+export async function uploadLogoImage() {
+  try {
+    await uploadImageToField('set-logo-image-file', 'set-logo-image', 'Logo image uploaded.');
+    getById('set-logo-type').value = 'image';
+    toggleLogoFields();
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to upload the logo right now.'), {
+      tone: 'error',
+      title: 'Upload failed',
+    });
+  }
+}
+
+export async function uploadResourceImage() {
+  try {
+    await uploadImageToField('form-image-file', 'form-image', 'Resource image uploaded.');
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to upload the resource image right now.'), {
+      tone: 'error',
+      title: 'Upload failed',
+    });
+  }
+}
+
+export async function uploadTestimonialImage() {
+  try {
+    await uploadImageToField('testi-image-file', 'testi-image', 'Testimonial image uploaded.');
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to upload the testimonial image right now.'), {
+      tone: 'error',
+      title: 'Upload failed',
+    });
+  }
+}
+
+export async function moveCollectionItem(collection, id, direction) {
+  const items = [...getCollectionItems(collection)];
+  const currentIndex = items.findIndex((item) => item.id === id);
+  if (currentIndex === -1) {
+    return;
+  }
+
+  const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= items.length) {
+    return;
+  }
+
+  const [movedItem] = items.splice(currentIndex, 1);
+  items.splice(targetIndex, 0, movedItem);
+
+  try {
+    await reorderCollection(collection, items.map((item) => item.id));
+
+    if (collection === 'links') {
+      await refreshAdminLinks();
+    } else if (collection === 'freebies' || collection === 'gear') {
+      await refreshResourceTable(collection);
+    } else if (collection === 'testimonials') {
+      await refreshTestimonials();
+    }
+
+    showToast('Display order updated.', {
+      tone: 'success',
+      title: 'Order saved',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to update the order right now.'), {
+      tone: 'error',
+      title: 'Order update failed',
+    });
   }
 }

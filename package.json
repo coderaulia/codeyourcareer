@@ -10,7 +10,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server/index.js",
-    "seed:admin": "node server/scripts/seed-admin.js"
+    "seed:admin": "node server/scripts/seed-admin.js",
+    "seed:demo": "node server/scripts/seed-demo.js",
+    "test": "node tests/api.test.js",
+    "check": "npm run build && npm run test"
   },
   "dependencies": {
     "animejs": "^3.2.2",
@@ -21,7 +24,8 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "mysql2": "^3.14.1",
-    "vite": "^6.2.1"
+    "vite": "^6.2.1",
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

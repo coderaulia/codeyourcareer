@@ -1,6 +1,11 @@
+import { clearCsrfToken } from '../api/http.js';
 import { changePassword, getCurrentUser, getSession, loginWithPassword, logout } from '../api/auth.js';
 import { formatErrorMessage, setButtonBusy, showToast } from '../shared/utils.js';
 import { initAdmin } from './admin.js';
+
+const authEventKey = 'cyc_admin_auth_event';
+let authChannel;
+let listenersBound = false;
 
 function showLoginGate() {
   document.getElementById('loginGate')?.classList.remove('hidden');
@@ -12,20 +17,87 @@ function showDashboard() {
   document.getElementById('dashboard')?.classList.remove('hidden');
 }
 
+function broadcastAuthEvent(type) {
+  const payload = { type, timestamp: Date.now() };
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    authChannel ??= new BroadcastChannel('cyc-admin-auth');
+    authChannel.postMessage(payload);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(authEventKey, JSON.stringify(payload));
+  }
+}
+
+function handleAuthSignal(type, notify = false) {
+  if (type === 'logout' || type === 'expired') {
+    clearCsrfToken();
+    showLoginGate();
+    if (notify) {
+      showToast('Your admin session ended. Sign in again to continue.', {
+        tone: 'info',
+        title: 'Session closed',
+      });
+    }
+    return;
+  }
+
+  if (type === 'login' || type === 'refresh') {
+    void checkAdminSession();
+  }
+}
+
+function bindAuthListeners() {
+  if (listenersBound || typeof window === 'undefined') {
+    return;
+  }
+
+  listenersBound = true;
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    authChannel ??= new BroadcastChannel('cyc-admin-auth');
+    authChannel.addEventListener('message', (event) => {
+      handleAuthSignal(event.data?.type, event.data?.type === 'logout');
+    });
+  }
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== authEventKey || !event.newValue) {
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(event.newValue);
+      handleAuthSignal(payload.type, payload.type === 'logout');
+    } catch {
+      // Ignore malformed storage events.
+    }
+  });
+
+  window.addEventListener('cyc:auth-state', (event) => {
+    handleAuthSignal(event.detail?.type || 'expired', true);
+  });
+}
+
 export async function checkAdminSession() {
   if (!document.getElementById('dashboard')) {
     return;
   }
 
+  bindAuthListeners();
+
   try {
     const session = await getSession();
     if (!session?.authenticated) {
+      clearCsrfToken();
       showLoginGate();
       return;
     }
 
     const user = await getCurrentUser();
     if (!user) {
+      clearCsrfToken();
       showLoginGate();
       return;
     }
@@ -33,6 +105,7 @@ export async function checkAdminSession() {
     showDashboard();
     initAdmin(user);
   } catch {
+    clearCsrfToken();
     showLoginGate();
   }
 }
@@ -54,6 +127,7 @@ export async function adminLogin() {
 
     showDashboard();
     initAdmin(session.user);
+    broadcastAuthEvent('login');
     showToast('Welcome back. Your admin session is ready.', {
       tone: 'success',
       title: 'Signed in',
@@ -82,6 +156,7 @@ export async function submitPasswordChange(event) {
   try {
     await changePassword(currentPassword, newPassword, confirmPassword);
     event.target.reset();
+    broadcastAuthEvent('refresh');
     showToast('Your admin password has been updated.', {
       tone: 'success',
       title: 'Password changed',
@@ -99,11 +174,9 @@ export async function submitPasswordChange(event) {
 export async function adminLogout() {
   try {
     await logout();
-    showToast('You have been signed out.', {
-      tone: 'info',
-      title: 'Signed out',
-    });
   } finally {
+    clearCsrfToken();
+    broadcastAuthEvent('logout');
     showLoginGate();
     window.location.reload();
   }
