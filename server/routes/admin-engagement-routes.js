@@ -40,6 +40,28 @@ function parseMetadata(value) {
   }
 }
 
+function toCsvValue(value) {
+  const normalizedValue = value === null || value === undefined ? '' : String(value);
+  if (/[",\r\n]/.test(normalizedValue)) {
+    return `"${normalizedValue.replace(/"/g, '""')}"`;
+  }
+
+  return normalizedValue;
+}
+
+function toCsv(rows) {
+  if (!rows.length) {
+    return 'event_type,created_at,page_path,source,medium,campaign,link_title,resource_table,resource_title,booking_id,contact_message_id,metadata_json\n';
+  }
+
+  const headers = Object.keys(rows[0]);
+  const lines = [headers.join(',')];
+  rows.forEach((row) => {
+    lines.push(headers.map((header) => toCsvValue(row[header])).join(','));
+  });
+  return `${lines.join('\n')}\n`;
+}
+
 export function createAdminEngagementRoutes(deps) {
   const router = Router();
 
@@ -368,6 +390,43 @@ export function createAdminEngagementRoutes(deps) {
         [limit]
       );
       response.json({ data: rows });
+    })
+  );
+
+  router.get(
+    '/analytics/export.csv',
+    asyncHandler(async (request, response) => {
+      const requestedDays = integerValue(request.query.days, 30);
+      const days = Math.max(1, Math.min(requestedDays || 30, 365));
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const rows = await deps.query(
+        `SELECT
+           e.event_type AS event_type,
+           e.created_at AS created_at,
+           e.page_path AS page_path,
+           e.source_label AS source,
+           e.medium_label AS medium,
+           e.campaign_label AS campaign,
+           e.link_title AS link_title,
+           e.resource_table AS resource_table,
+           e.resource_title AS resource_title,
+           e.booking_id AS booking_id,
+           e.contact_message_id AS contact_message_id,
+           e.metadata_json AS metadata_json
+         FROM analytics_events e
+         WHERE e.created_at >= ?
+         ORDER BY e.created_at DESC
+         LIMIT 5000`,
+        [since]
+      );
+
+      response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      response.setHeader(
+        'Content-Disposition',
+        `attachment; filename="cyc-analytics-${days}d.csv"`
+      );
+      response.send(toCsv(rows));
     })
   );
 

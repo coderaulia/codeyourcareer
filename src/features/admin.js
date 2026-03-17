@@ -4,6 +4,7 @@ import {
   deleteLink as deleteLinkData,
   deleteResource,
   deleteTestimonial as deleteTestimonialData,
+  downloadAnalyticsExport,
   getAllLinks,
   getBookings,
   getContactMessages,
@@ -1149,6 +1150,36 @@ export async function loadAnalytics() {
     `;
   } catch (error) {
     reportLoadFailure('Analytics', error, 'analytics-data', 'Analytics unavailable');
+  }
+}
+
+export async function exportAnalyticsCsv() {
+  const days = Number.parseInt(getById('analytics-range')?.value || '30', 10) || 30;
+  const exportButton = getById('analytics-export-button');
+  setButtonBusy(exportButton, true, 'Exporting...');
+
+  try {
+    const blob = await downloadAnalyticsExport(days);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cyc-analytics-${days}d.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+
+    showToast('Analytics export downloaded.', {
+      tone: 'success',
+      title: 'Export ready',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to export analytics right now.'), {
+      tone: 'error',
+      title: 'Export failed',
+    });
+  } finally {
+    setButtonBusy(exportButton, false);
   }
 }
 

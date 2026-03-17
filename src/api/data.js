@@ -1,4 +1,4 @@
-import { apiRequest, uploadRequest } from './http.js';
+import { apiRequest, getApiRoot, uploadRequest } from './http.js';
 
 export async function createAnalyticsSession(payload) {
   return apiRequest('/analytics/session', {
@@ -190,6 +190,20 @@ export async function getRecentLinkClicks(limit = 100) {
 
 export async function getAnalyticsOverview(days = 30) {
   return apiRequest(`/admin/analytics/overview?days=${days}`);
+}
+
+export async function downloadAnalyticsExport(days = 30) {
+  const response = await fetch(`${getApiRoot()}/admin/analytics/export.csv?days=${days}`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json') ? await response.json() : null;
+    throw new Error(payload?.error || `Request failed with status ${response.status}`);
+  }
+
+  return response.blob();
 }
 
 export async function getDashboardStats() {

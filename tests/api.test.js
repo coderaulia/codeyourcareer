@@ -398,6 +398,61 @@ await runTest('analytics session init and click tracking keep source attribution
   }
 });
 
+await runTest('analytics export returns csv for authenticated admins', async () => {
+  const exportRows = [
+    {
+      event_type: 'booking_submitted',
+      created_at: '2026-03-17T08:00:00.000Z',
+      page_path: '/#consultation',
+      source: 'instagram',
+      medium: 'social',
+      campaign: 'launch',
+      link_title: '',
+      resource_table: '',
+      resource_title: '',
+      booking_id: 'booking-1',
+      contact_message_id: '',
+      metadata_json: '{"topic":"CV Review"}',
+    },
+  ];
+
+  const harness = await startServer({
+    query: async (sql, params = []) => {
+      if (sql.includes('FROM analytics_events e')) {
+        return exportRows;
+      }
+      return [];
+    },
+    one: async () => null,
+    transaction: async (callback) =>
+      callback({
+        query: async () => [],
+        one: async () => null,
+      }),
+  });
+  const client = createClient(harness.baseUrl);
+
+  try {
+    const loginResponse = await client.request('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'admin@example.com',
+        password: 'correct horse battery staple',
+      }),
+    });
+    assert.equal(loginResponse.status, 200);
+
+    const exportResponse = await client.request('/api/admin/analytics/export.csv?days=30');
+    assert.equal(exportResponse.status, 200);
+    assert.match(exportResponse.headers['content-type'], /text\/csv/);
+    assert.match(exportResponse.text, /booking_submitted/);
+    assert.match(exportResponse.text, /instagram/);
+  } finally {
+    await harness.close();
+  }
+});
+
 await runTest('logout clears the current session and invalidates follow-up session checks', async () => {
   const harness = await startServer();
   const client = createClient(harness.baseUrl);

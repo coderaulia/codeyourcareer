@@ -11,6 +11,7 @@ import {
   editItem,
   editLink,
   editTestimonial,
+  exportAnalyticsCsv,
   loadAnalytics,
   moveCollectionItem,
   resetLinkForm,
@@ -122,6 +123,10 @@ function bindAdminControls() {
 
   document.getElementById('analytics-range')?.addEventListener('change', () => {
     void loadAnalytics();
+  });
+
+  document.getElementById('analytics-export-button')?.addEventListener('click', () => {
+    void exportAnalyticsCsv();
   });
 }
 

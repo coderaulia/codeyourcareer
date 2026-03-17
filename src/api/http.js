@@ -37,6 +37,10 @@ export function clearCsrfToken() {
   setCsrfToken('');
 }
 
+export function getApiRoot() {
+  return `${apiBaseUrl}/api`;
+}
+
 function syncSecurityState(data) {
   if (!data || typeof data !== 'object') {
     return;
