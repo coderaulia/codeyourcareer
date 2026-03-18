@@ -340,6 +340,214 @@ body {
     color: #24313f;
 }
 
+.analytics-alert-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.analytics-alert {
+    border-radius: 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(17, 17, 17, 0.08);
+    background: #f8f9fa;
+}
+
+.analytics-alert-positive {
+    background: #edf8f1;
+    border-color: rgba(25, 135, 84, 0.22);
+}
+
+.analytics-alert-negative {
+    background: #fff4f0;
+    border-color: rgba(191, 54, 12, 0.22);
+}
+
+.analytics-alert-neutral {
+    background: #f5f7fa;
+    border-color: rgba(84, 96, 108, 0.18);
+}
+
+.analytics-alert__title {
+    font-size: 0.8rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.analytics-alert__message {
+    font-size: 0.9rem;
+    color: #24313f;
+}
+
+.analytics-report-card {
+    border: 1px solid rgba(17, 17, 17, 0.08);
+    border-radius: 18px;
+    padding: 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(245, 247, 250, 0.96) 100%);
+}
+
+.analytics-report-section {
+    background: #ffffff;
+    border: 1px solid rgba(17, 17, 17, 0.08);
+    border-radius: 14px;
+    padding: 14px;
+    height: 100%;
+}
+
+.analytics-report-section__title {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #54606c;
+    margin-bottom: 10px;
+}
+
+.analytics-report-section__item {
+    font-size: 0.93rem;
+    color: #111111;
+    padding: 6px 0;
+    border-bottom: 1px solid #eef1f5;
+}
+
+.analytics-report-section__item:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.analytics-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+}
+
+.analytics-kpi {
+    border-radius: 16px;
+    padding: 14px 16px;
+    border: 1px solid rgba(17, 17, 17, 0.08);
+    background: #ffffff;
+}
+
+.analytics-kpi__label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #54606c;
+    margin-bottom: 6px;
+}
+
+.analytics-kpi__value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #111111;
+}
+
+.analytics-kpi__meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: #54606c;
+    margin-top: 6px;
+}
+
+.analytics-kpi-positive {
+    background: #edf8f1;
+}
+
+.analytics-kpi-negative {
+    background: #fff4f0;
+}
+
+.analytics-kpi-neutral {
+    background: #f5f7fa;
+}
+
+.analytics-progress {
+    height: 6px;
+    margin-top: 6px;
+}
+
+.analytics-breakdown__row {
+    margin-bottom: 12px;
+}
+
+.analytics-breakdown__row:last-child {
+    margin-bottom: 0;
+}
+
+.analytics-momentum-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eef1f5;
+}
+
+.analytics-momentum-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.analytics-delta {
+    min-width: 64px;
+    text-align: right;
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.analytics-delta-positive {
+    color: #198754;
+}
+
+.analytics-delta-negative {
+    color: #bf360c;
+}
+
+.analytics-delta-neutral {
+    color: #54606c;
+}
+
+.analytics-trend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.analytics-trend-row {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) 180px;
+    gap: 12px;
+    align-items: center;
+}
+
+.analytics-trend-row__day {
+    font-size: 0.82rem;
+    color: #54606c;
+}
+
+.analytics-trend-row__bar {
+    height: 10px;
+    border-radius: 999px;
+    background: #edf1f4;
+    overflow: hidden;
+}
+
+.analytics-trend-row__fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #111111 0%, #475569 100%);
+}
+
+.analytics-trend-row__stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.78rem;
+    color: #54606c;
+}
+
 .panel-feedback {
     border: 1px dashed rgba(17, 17, 17, 0.12);
     border-radius: 14px;
@@ -444,6 +652,16 @@ body {
 
     .admin-card {
         padding: 20px;
+    }
+
+    .analytics-trend-row {
+        grid-template-columns: 60px minmax(0, 1fr);
+    }
+
+    .analytics-trend-row__stats {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
 
     .toast-region {

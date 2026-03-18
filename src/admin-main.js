@@ -4,6 +4,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../style.css';
 import {
   confirmBooking,
+  copyAnalyticsReport,
   deleteItem,
   deleteLink,
   deleteMessage,
@@ -175,6 +176,9 @@ function bindDelegatedAdminActions() {
         break;
       case 'delete-message':
         void deleteMessage(id);
+        break;
+      case 'copy-analytics-report':
+        void copyAnalyticsReport();
         break;
       default:
         break;

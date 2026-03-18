@@ -453,6 +453,197 @@ await runTest('analytics export returns csv for authenticated admins', async () 
   }
 });
 
+await runTest('analytics overview returns phase 3 breakdowns trends and client report', async () => {
+  const harness = await startServer({
+    one: async (sql, params = []) => {
+      if (sql.includes('FROM visitor_sessions')) {
+        return { count: sql.includes('started_at < ?') ? 28 : 42 };
+      }
+
+      if (sql.includes('FROM analytics_events WHERE event_type = ?')) {
+        const eventType = params[0];
+        const previous = sql.includes('created_at < ?');
+        const currentCounts = {
+          page_view: 80,
+          link_click: 26,
+          resource_click: 14,
+          booking_submitted: 7,
+          contact_submitted: 5,
+        };
+        const previousCounts = {
+          page_view: 62,
+          link_click: 18,
+          resource_click: 9,
+          booking_submitted: 4,
+          contact_submitted: 3,
+        };
+
+        return { count: previous ? previousCounts[eventType] : currentCounts[eventType] };
+      }
+
+      return null;
+    },
+    query: async (sql) => {
+      if (sql.includes('GROUP BY source_label, medium_label')) {
+        return [
+          { source_label: 'instagram', medium_label: 'social', sessions: 18 },
+          { source_label: 'linkedin', medium_label: 'social', sessions: 12 },
+        ];
+      }
+
+      if (sql.includes("GROUP BY source_label") && sql.includes("booking_submitted")) {
+        return [
+          { source_label: 'instagram', leads: 6 },
+          { source_label: 'linkedin', leads: 3 },
+        ];
+      }
+
+      if (sql.includes('AS campaign')) {
+        return [
+          { campaign: 'launch', sessions: 15 },
+          { campaign: '(none)', sessions: 9 },
+        ];
+      }
+
+      if (sql.includes('landing_path')) {
+        return [
+          { landing_path: '/', visits: 24 },
+          { landing_path: '/#consultation', visits: 11 },
+        ];
+      }
+
+      if (sql.includes("event_type IN ('link_click', 'resource_click')") && sql.includes('created_at < ?')) {
+        return [
+          {
+            event_type: 'link_click',
+            resource_table: '',
+            item_key: 'link-1',
+            label: 'Book a Session',
+            clicks: 9,
+          },
+          {
+            event_type: 'resource_click',
+            resource_table: 'Freebies',
+            item_key: 'freebie-1',
+            label: 'CV Template',
+            clicks: 5,
+          },
+        ];
+      }
+
+      if (sql.includes("event_type IN ('link_click', 'resource_click')")) {
+        return [
+          {
+            event_type: 'link_click',
+            resource_table: '',
+            item_key: 'link-1',
+            label: 'Book a Session',
+            clicks: 14,
+          },
+          {
+            event_type: 'resource_click',
+            resource_table: 'Freebies',
+            item_key: 'freebie-1',
+            label: 'CV Template',
+            clicks: 8,
+          },
+        ];
+      }
+
+      if (sql.includes("event_type IN ('booking_submitted', 'contact_submitted')")) {
+        return [
+          {
+            event_type: 'booking_submitted',
+            page_path: '/#consultation',
+            source_label: 'instagram',
+            medium_label: 'social',
+            campaign_label: 'launch',
+            metadata_json: '{"topic":"CV Review"}',
+            created_at: '2026-03-17T10:00:00.000Z',
+          },
+        ];
+      }
+
+      if (sql.includes('NULLIF(device_type')) {
+        return [
+          { label: 'mobile', sessions: 24 },
+          { label: 'desktop', sessions: 18 },
+        ];
+      }
+
+      if (sql.includes('NULLIF(browser')) {
+        return [
+          { label: 'Chrome', sessions: 28 },
+          { label: 'Safari', sessions: 10 },
+        ];
+      }
+
+      if (sql.includes('NULLIF(country_code')) {
+        return [
+          { label: 'ID', sessions: 19 },
+          { label: 'SG', sessions: 7 },
+        ];
+      }
+
+      if (sql.includes('DATE_FORMAT(started_at')) {
+        return [
+          { day_key: '2026-03-12', visits: 5 },
+          { day_key: '2026-03-13', visits: 7 },
+          { day_key: '2026-03-14', visits: 9 },
+        ];
+      }
+
+      if (sql.includes('DATE_FORMAT(created_at')) {
+        return [
+          { day_key: '2026-03-12', event_type: 'page_view', total: 11 },
+          { day_key: '2026-03-12', event_type: 'link_click', total: 3 },
+          { day_key: '2026-03-12', event_type: 'booking_submitted', total: 1 },
+          { day_key: '2026-03-13', event_type: 'page_view', total: 16 },
+          { day_key: '2026-03-13', event_type: 'resource_click', total: 2 },
+          { day_key: '2026-03-14', event_type: 'contact_submitted', total: 1 },
+        ];
+      }
+
+      return [];
+    },
+    transaction: async (callback) =>
+      callback({
+        query: async () => [],
+        one: async () => null,
+      }),
+  });
+  const client = createClient(harness.baseUrl);
+
+  try {
+    const loginResponse = await client.request('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'admin@example.com',
+        password: 'correct horse battery staple',
+      }),
+    });
+    assert.equal(loginResponse.status, 200);
+
+    const overviewResponse = await client.request('/api/admin/analytics/overview?days=30');
+    assert.equal(overviewResponse.status, 200);
+    const payload = await overviewResponse.json();
+
+    assert.equal(payload.data.summary.visits, 42);
+    assert.ok(Array.isArray(payload.data.periodComparisons));
+    assert.ok(payload.data.periodComparisons.find((item) => item.key === 'leads'));
+    assert.ok(Array.isArray(payload.data.anomalyAlerts));
+    assert.ok(Array.isArray(payload.data.breakdowns.devices));
+    assert.equal(payload.data.breakdowns.devices[0].label, 'mobile');
+    assert.ok(Array.isArray(payload.data.dailyTrend));
+    assert.ok(payload.data.dailyTrend.length >= 30);
+    assert.equal(payload.data.contentMomentum[0].label, 'Book a Session');
+    assert.match(payload.data.clientReport.summaryText, /CodeYourCareer analytics snapshot/);
+  } finally {
+    await harness.close();
+  }
+});
+
 await runTest('logout clears the current session and invalidates follow-up session checks', async () => {
   const harness = await startServer();
   const client = createClient(harness.baseUrl);

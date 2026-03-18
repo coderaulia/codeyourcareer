@@ -40,6 +40,7 @@ const adminState = {
   currentUser: null,
   version: null,
   modules: [],
+  analyticsOverview: null,
   links: [],
   resources: {
     freebies: [],
@@ -110,6 +111,194 @@ function updateHeaderContext() {
   if (userElement) {
     userElement.textContent = adminState.currentUser?.email || 'Signed in';
   }
+}
+
+function formatSignedValue(value, suffix = '') {
+  const numericValue = Number(value || 0);
+  const sign = numericValue > 0 ? '+' : '';
+  return `${sign}${numericValue}${suffix}`;
+}
+
+function formatTrendDay(value) {
+  if (!value) {
+    return '';
+  }
+
+  try {
+    return new Date(value).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return String(value);
+  }
+}
+
+function renderAnalyticsComparisons(items) {
+  if (!items?.length) {
+    return '<div class="text-muted small">Period comparison data is not available yet.</div>';
+  }
+
+  return items
+    .map((item) => {
+      const toneClass =
+        item.tone === 'positive'
+          ? 'analytics-kpi-positive'
+          : item.tone === 'negative'
+            ? 'analytics-kpi-negative'
+            : 'analytics-kpi-neutral';
+      const valueSuffix = item.suffix || '';
+      return `
+        <div class="analytics-kpi ${toneClass}">
+          <div class="analytics-kpi__label">${escapeHtml(item.label)}</div>
+          <div class="analytics-kpi__value">${item.current}${escapeHtml(valueSuffix)}</div>
+          <div class="analytics-kpi__meta">
+            <span>${formatSignedValue(item.delta, valueSuffix)} vs prev.</span>
+            <span>${formatSignedValue(item.percentChange, '%')}</span>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function renderAnalyticsAlerts(items) {
+  if (!items?.length) {
+    return '<div class="text-muted small">No alert data yet.</div>';
+  }
+
+  return items
+    .map((item) => {
+      const toneClass =
+        item.tone === 'positive'
+          ? 'analytics-alert-positive'
+          : item.tone === 'negative'
+            ? 'analytics-alert-negative'
+            : 'analytics-alert-neutral';
+      return `
+        <div class="analytics-alert ${toneClass}">
+          <div class="analytics-alert__title">${escapeHtml(item.label)}</div>
+          <div class="analytics-alert__message">${escapeHtml(item.message)}</div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function renderAnalyticsBreakdown(items, emptyMessage) {
+  if (!items?.length) {
+    return `<div class="text-muted small">${escapeHtml(emptyMessage)}</div>`;
+  }
+
+  return items
+    .map(
+      (item) => `
+        <div class="analytics-breakdown__row">
+          <div class="d-flex justify-content-between gap-2 small">
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${item.count} <span class="text-muted">(${item.percent}%)</span></strong>
+          </div>
+          <div class="progress analytics-progress">
+            <div class="progress-bar bg-dark" style="width:${Math.max(4, Number(item.percent || 0))}%"></div>
+          </div>
+        </div>
+      `
+    )
+    .join('');
+}
+
+function renderDailyTrend(rows) {
+  if (!rows?.length) {
+    return '<div class="text-muted small">Daily trend data will appear after more traffic is recorded.</div>';
+  }
+
+  const visibleRows = rows.slice(-14);
+  const maxVisits = Math.max(...visibleRows.map((item) => Number(item.visits || 0)), 1);
+
+  return `
+    <div class="analytics-trend-list">
+      ${visibleRows
+        .map(
+          (item) => `
+            <div class="analytics-trend-row">
+              <div class="analytics-trend-row__day">${escapeHtml(formatTrendDay(item.day))}</div>
+              <div class="analytics-trend-row__bar">
+                <div class="analytics-trend-row__fill" style="width:${Math.max(4, Math.round((Number(item.visits || 0) / maxVisits) * 100))}%"></div>
+              </div>
+              <div class="analytics-trend-row__stats">
+                <span>${item.visits} visits</span>
+                <span>${item.trackedClicks} clicks</span>
+                <span>${item.leads} leads</span>
+              </div>
+            </div>
+          `
+        )
+        .join('')}
+    </div>
+  `;
+}
+
+function renderContentMomentum(items) {
+  if (!items?.length) {
+    return '<div class="text-muted small">Content momentum will appear once the current and previous periods have enough clicks.</div>';
+  }
+
+  return items
+    .map((item) => {
+      const badge = item.type === 'resource_click' ? 'Resource' : 'Link';
+      const trendClass =
+        item.percentChange > 0
+          ? 'analytics-delta-positive'
+          : item.percentChange < 0
+            ? 'analytics-delta-negative'
+            : 'analytics-delta-neutral';
+      return `
+        <div class="analytics-momentum-row">
+          <div>
+            <div class="fw-bold">${escapeHtml(item.label)} <span class="badge bg-light text-dark border">${badge}</span></div>
+            <div class="small text-muted">${item.currentClicks} current / ${item.previousClicks} previous</div>
+          </div>
+          <div class="analytics-delta ${trendClass}">${formatSignedValue(item.percentChange, '%')}</div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function renderClientReport(report) {
+  if (!report) {
+    return '<div class="text-muted small">Client summary is unavailable.</div>';
+  }
+
+  return `
+    <div class="analytics-report-card">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <div class="small text-muted">Client-ready summary</div>
+          <div class="fw-bold">${escapeHtml(report.headline || '')}</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-dark" data-action="copy-analytics-report">Copy Summary</button>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="analytics-report-section">
+            <div class="analytics-report-section__title">Wins</div>
+            ${(report.wins || [])
+              .map((item) => `<div class="analytics-report-section__item">${escapeHtml(item)}</div>`)
+              .join('')}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="analytics-report-section">
+            <div class="analytics-report-section__title">Watchouts</div>
+            ${(report.watchouts || [])
+              .map((item) => `<div class="analytics-report-section__item">${escapeHtml(item)}</div>`)
+              .join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function validateLinkPayload(payload, id = '') {
@@ -1055,9 +1244,11 @@ export async function deleteMessage(id) {
 export async function loadAnalytics() {
   const days = Number.parseInt(getById('analytics-range')?.value || '30', 10) || 30;
   setListState('analytics-data', 'Loading analytics', 'Building your traffic and conversion report...');
+  adminState.analyticsOverview = null;
 
   try {
     const data = await getAnalyticsOverview(days);
+    adminState.analyticsOverview = data;
     const analyticsElement = getById('analytics-data');
     if (!analyticsElement) {
       return;
@@ -1084,6 +1275,15 @@ export async function loadAnalytics() {
         <div class="small text-muted mb-1">Conversion Rate</div>
         <div class="fs-3 fw-bold">${summary.conversionRate}%</div>
         <div class="small text-muted">Based on visits tracked in the last ${escapeHtml(String(data.rangeDays || days))} days.</div>
+      </div>
+      <div class="analytics-alert-grid mb-4">
+        ${renderAnalyticsAlerts(data.anomalyAlerts || [])}
+      </div>
+      <div class="mb-4">
+        ${renderClientReport(data.clientReport)}
+      </div>
+      <div class="analytics-kpi-grid mb-4">
+        ${renderAnalyticsComparisons(data.periodComparisons || [])}
       </div>
       <div class="row g-4">
         <div class="col-lg-6">
@@ -1131,6 +1331,26 @@ export async function loadAnalytics() {
                 .join('')
             : '<div class="text-muted small">No click data yet.</div>'}
         </div>
+        <div class="col-lg-6">
+          <h6 class="fw-bold small mb-2">Audience Devices</h6>
+          ${renderAnalyticsBreakdown(data.breakdowns?.devices || [], 'No device signals yet.')}
+        </div>
+        <div class="col-lg-6">
+          <h6 class="fw-bold small mb-2">Browsers</h6>
+          ${renderAnalyticsBreakdown(data.breakdowns?.browsers || [], 'No browser breakdown yet.')}
+        </div>
+        <div class="col-lg-6">
+          <h6 class="fw-bold small mb-2">Top Countries</h6>
+          ${renderAnalyticsBreakdown(data.breakdowns?.countries || [], 'No geo signals yet.')}
+        </div>
+        <div class="col-lg-6">
+          <h6 class="fw-bold small mb-2">Content Momentum</h6>
+          ${renderContentMomentum(data.contentMomentum || [])}
+        </div>
+        <div class="col-12">
+          <h6 class="fw-bold small mb-2">Daily Trend</h6>
+          ${renderDailyTrend(data.dailyTrend || [])}
+        </div>
         <div class="col-12">
           <h6 class="fw-bold small mb-2">Recent Conversions</h6>
           ${(data.recentConversions || []).length
@@ -1149,6 +1369,7 @@ export async function loadAnalytics() {
       </div>
     `;
   } catch (error) {
+    adminState.analyticsOverview = null;
     reportLoadFailure('Analytics', error, 'analytics-data', 'Analytics unavailable');
   }
 }
@@ -1180,6 +1401,43 @@ export async function exportAnalyticsCsv() {
     });
   } finally {
     setButtonBusy(exportButton, false);
+  }
+}
+
+export async function copyAnalyticsReport() {
+  const summaryText = adminState.analyticsOverview?.clientReport?.summaryText;
+  if (!summaryText) {
+    showToast('Load analytics first so there is a report to copy.', {
+      tone: 'info',
+      title: 'Nothing to copy',
+    });
+    return;
+  }
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(summaryText);
+    } else {
+      const helper = document.createElement('textarea');
+      helper.value = summaryText;
+      helper.setAttribute('readonly', '');
+      helper.style.position = 'absolute';
+      helper.style.left = '-9999px';
+      document.body.appendChild(helper);
+      helper.select();
+      document.execCommand('copy');
+      helper.remove();
+    }
+
+    showToast('Client summary copied to clipboard.', {
+      tone: 'success',
+      title: 'Summary copied',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to copy the analytics summary right now.'), {
+      tone: 'error',
+      title: 'Copy failed',
+    });
   }
 }
 
