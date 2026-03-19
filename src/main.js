@@ -1,6 +1,3 @@
-import anime from 'animejs/lib/anime.es.js';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../style.css';
 import {
   fetchResources,
@@ -9,9 +6,8 @@ import {
   initPublicPage,
   trackClick,
 } from './features/public.js';
+import { primeAnimator } from './shared/animation.js';
 import { navigateTo } from './shared/utils.js';
-
-window.anime = anime;
 
 Object.assign(window, {
   fetchResources,
@@ -21,4 +17,5 @@ Object.assign(window, {
   trackClick,
 });
 
+void primeAnimator();
 initPublicPage();

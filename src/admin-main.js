@@ -1,6 +1,3 @@
-import anime from 'animejs/lib/anime.es.js';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../style.css';
 import {
   confirmBooking,
@@ -32,8 +29,7 @@ import {
   uploadTestimonialImage,
 } from './features/admin.js';
 import { adminLogin, adminLogout, checkAdminSession, submitPasswordChange } from './features/auth.js';
-
-window.anime = anime;
+import { primeAnimator } from './shared/animation.js';
 
 function openAdminTab(tabName) {
   const button = document.querySelector(`[data-admin-tab="${tabName}"]`);
@@ -202,4 +198,5 @@ function bindAdminUi() {
 }
 
 bindAdminUi();
+void primeAnimator();
 checkAdminSession();
