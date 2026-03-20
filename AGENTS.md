@@ -196,3 +196,44 @@ Use `server/middleware/validate.js` for input validation:
 - `validateEnum(value, fieldName, allowedValues)` - Allowlist validation
 - `validateUrl(value, fieldName)` - URL validation
 - `sanitizeHtml(value)` - XSS prevention
+
+## Deployment Rules
+
+### API Backend Updates
+
+When backend files change, update the deploy zip:
+
+1. Copy changed files to `deploy/api-subdomain/`:
+   - `server/routes/*.js` → `deploy/api-subdomain/server/routes/`
+   - `server/middleware/*.js` → `deploy/api-subdomain/server/middleware/`
+   - `server/scripts/*.js` → `deploy/api-subdomain/server/scripts/`
+   - `scripts/*.js` → `deploy/api-subdomain/scripts/`
+
+2. Update `.env.example` in `deploy/api-subdomain/` when env vars change
+
+3. Regenerate the zip:
+   ```bash
+   cd deploy
+   rm -f codeyourcareer-api-subdomain-flat.zip
+   powershell -Command "Compress-Archive -Path 'api-subdomain' -DestinationPath 'codeyourcareer-api-subdomain-flat.zip'"
+   ```
+
+4. Notify user to download and re-upload the new zip
+
+### Environment Variable Changes
+
+When `.env.example` changes:
+- Always notify user to update their `.env` on Hostinger
+- List which new variables need to be added
+- Provide default values if applicable
+
+### Files That Require User Action
+
+| Change | User Action Required |
+|--------|---------------------|
+| `server/routes/*.js` | Re-upload API zip |
+| `server/middleware/*.js` | Re-upload API zip |
+| `server/scripts/*.js` | Re-upload API zip |
+| `scripts/*.js` | Re-upload API zip |
+| `.env.example` changes | Update `.env` on Hostinger |
+| `database/mysql-schema.sql` | Run manual SQL migration if needed |
