@@ -1,7 +1,10 @@
 import '../style.css';
 import {
+  bindSetupWizardEvents,
+  checkSetupWizard,
   confirmBooking,
   copyAnalyticsReport,
+  deleteBackupAction,
   deleteItem,
   deleteLink,
   deleteMessage,
@@ -10,6 +13,7 @@ import {
   editLink,
   editTestimonial,
   exportAnalyticsCsv,
+  initMaintenanceTab,
   loadAnalytics,
   moveCollectionItem,
   resetLinkForm,
@@ -35,6 +39,10 @@ function openAdminTab(tabName) {
   const button = document.querySelector(`[data-admin-tab="${tabName}"]`);
   if (!button) {
     return;
+  }
+
+  if (tabName === 'maintenance') {
+    initMaintenanceTab();
   }
 
   switchAdminTab(button, tabName);
@@ -176,6 +184,9 @@ function bindDelegatedAdminActions() {
       case 'copy-analytics-report':
         void copyAnalyticsReport();
         break;
+      case 'delete-backup':
+        void deleteBackupAction(target.dataset.filename || '');
+        break;
       default:
         break;
     }
@@ -198,5 +209,8 @@ function bindAdminUi() {
 }
 
 bindAdminUi();
+bindSetupWizardEvents();
 void primeAnimator();
-checkAdminSession();
+checkAdminSession().then(() => {
+  setTimeout(() => void checkSetupWizard(), 500);
+});

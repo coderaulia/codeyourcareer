@@ -209,3 +209,44 @@ export async function downloadAnalyticsExport(days = 30) {
 export async function getDashboardStats() {
   return apiRequest('/admin/dashboard-stats');
 }
+
+export async function listBackups() {
+  return apiRequest('/admin/maintenance/backup');
+}
+
+export async function createBackup() {
+  return apiRequest('/admin/maintenance/backup', {
+    method: 'POST',
+  });
+}
+
+export function getBackupDownloadUrl(filename) {
+  return `${getApiRoot()}/admin/maintenance/backup/${encodeURIComponent(filename)}`;
+}
+
+export async function deleteBackup(filename) {
+  return apiRequest(`/admin/maintenance/backup/${encodeURIComponent(filename)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function runCleanup(retentionDays) {
+  return apiRequest('/admin/maintenance/cleanup', {
+    method: 'POST',
+    body: { retentionDays },
+  });
+}
+
+export async function checkDatabaseHealth() {
+  return apiRequest('/admin/maintenance/db-health');
+}
+
+export async function getSetupStatus() {
+  return apiRequest('/admin/setup-status');
+}
+
+export async function completeSetup() {
+  return apiRequest('/admin/setup-complete', {
+    method: 'POST',
+  });
+}

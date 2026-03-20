@@ -1,4 +1,6 @@
 import {
+  completeSetup,
+  deleteBackup,
   deleteBooking,
   deleteContactMessage,
   deleteLink as deleteLinkData,
@@ -6,16 +8,20 @@ import {
   deleteTestimonial as deleteTestimonialData,
   downloadAnalyticsExport,
   getAllLinks,
+  getBackupDownloadUrl,
   getBookings,
   getContactMessages,
   getAnalyticsOverview,
   getDashboardStats,
   getModules,
   getResources,
+  getSetupStatus,
   getSiteSettings,
   getTestimonials,
   getVersionInfo,
+  listBackups,
   reorderCollection,
+  runCleanup,
   saveLink as saveLinkData,
   saveResource as saveResourceData,
   saveTestimonial as saveTestimonialData,
@@ -1530,4 +1536,300 @@ export async function moveCollectionItem(collection, id, direction) {
       title: 'Order update failed',
     });
   }
+}
+
+export async function createBackupAction() {
+  const button = getById('backup-create-btn');
+  const statusEl = getById('backup-status');
+  setButtonBusy(button, true, 'Creating...');
+  if (statusEl) statusEl.textContent = 'Creating backup...';
+
+  try {
+    const result = await createBackup();
+    showToast(result?.data?.message || 'Backup created successfully.', {
+      tone: 'success',
+      title: 'Backup complete',
+    });
+    if (statusEl) statusEl.textContent = `Last backup: ${new Date().toLocaleString()}`;
+    void listBackupsAction();
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to create backup.'), {
+      tone: 'error',
+      title: 'Backup failed',
+    });
+    if (statusEl) statusEl.textContent = `Backup failed: ${error.message}`;
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+export async function listBackupsAction() {
+  const listEl = getById('backup-list');
+  if (!listEl) return;
+
+  try {
+    const result = await listBackups();
+    const backups = result?.data?.backups || [];
+
+    if (!backups.length) {
+      listEl.innerHTML = '<div class="text-muted small">No backups yet.</div>';
+      return;
+    }
+
+    listEl.innerHTML = backups
+      .map((backup) => {
+        const date = new Date(backup.createdAt);
+        const sizeKB = (backup.size / 1024).toFixed(1);
+        const downloadUrl = getBackupDownloadUrl(backup.filename);
+        return `<div class="d-flex justify-content-between align-items-center small border-bottom py-2">
+          <div>
+            <strong>${escapeHtml(backup.filename)}</strong>
+            <div class="text-muted">${date.toLocaleString()} - ${sizeKB} KB</div>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="${downloadUrl}" class="btn btn-sm btn-outline-dark" download><i class="bi bi-download"></i></a>
+            <button class="btn btn-sm btn-outline-danger" type="button" data-action="delete-backup" data-filename="${escapeHtml(backup.filename)}"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>`;
+      })
+      .join('');
+  } catch (error) {
+    listEl.innerHTML = `<div class="text-danger small">Unable to load backups: ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+export async function deleteBackupAction(filename) {
+  if (!window.confirm(`Delete backup "${filename}"? This cannot be undone.`)) {
+    return;
+  }
+
+  try {
+    await deleteBackup(filename);
+    showToast('Backup deleted.', {
+      tone: 'success',
+      title: 'Backup removed',
+    });
+    void listBackupsAction();
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to delete backup.'), {
+      tone: 'error',
+      title: 'Delete failed',
+    });
+  }
+}
+
+export async function runCleanupAction() {
+  const button = getById('cleanup-run-btn');
+  const resultEl = getById('cleanup-result');
+  const daysInput = getById('cleanup-days');
+  const retentionDays = Number(daysInput?.value) || 90;
+
+  if (retentionDays < 1 || retentionDays > 365) {
+    showToast('Retention days must be between 1 and 365.', {
+      tone: 'error',
+      title: 'Invalid input',
+    });
+    return;
+  }
+
+  if (!window.confirm(`Delete all analytics data older than ${retentionDays} days? This cannot be undone.`)) {
+    return;
+  }
+
+  setButtonBusy(button, true, 'Cleaning...');
+  if (resultEl) resultEl.innerHTML = '<span class="text-muted">Running cleanup...</span>';
+
+  try {
+    const result = await runCleanup(retentionDays);
+    const message = result?.data?.message || 'Cleanup completed.';
+    if (resultEl) resultEl.innerHTML = `<span class="text-success">${escapeHtml(message)}</span>`;
+    showToast(message, {
+      tone: 'success',
+      title: 'Cleanup complete',
+    });
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to run cleanup.'), {
+      tone: 'error',
+      title: 'Cleanup failed',
+    });
+    if (resultEl) resultEl.innerHTML = `<span class="text-danger">${escapeHtml(error.message)}</span>`;
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+export function initMaintenanceTab() {
+  const listBtn = getById('backup-list-btn');
+  if (listBtn) {
+    listBtn.addEventListener('click', () => void listBackupsAction());
+  }
+
+  const createBtn = getById('backup-create-btn');
+  if (createBtn) {
+    createBtn.addEventListener('click', () => void createBackupAction());
+  }
+
+  const cleanupBtn = getById('cleanup-run-btn');
+  if (cleanupBtn) {
+    cleanupBtn.addEventListener('click', () => void runCleanupAction());
+  }
+
+  const statusEl = getById('backup-status');
+  if (statusEl) {
+    statusEl.textContent = 'Ready to create backup.';
+  }
+}
+
+let setupWizard = null;
+let setupStep = 1;
+
+export async function checkSetupWizard() {
+  try {
+    const status = await getSetupStatus();
+    if (status?.data?.needsSetup) {
+      showSetupWizard();
+    }
+  } catch {
+    // Silently fail - wizard is optional
+  }
+}
+
+function showSetupWizard() {
+  setupStep = 1;
+  const modal = getById('setupWizard');
+  if (!modal) return;
+
+  showSetupStep(1);
+  if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+    setupWizard = new bootstrap.Modal(modal);
+    setupWizard.show();
+  } else {
+    modal.style.display = 'block';
+    modal.classList.add('show');
+  }
+}
+
+function hideSetupWizard() {
+  const modal = getById('setupWizard');
+  if (!modal) return;
+
+  if (setupWizard) {
+    setupWizard.hide();
+    setupWizard = null;
+  } else {
+    modal.style.display = 'none';
+    modal.classList.remove('show');
+  }
+}
+
+function showSetupStep(step) {
+  ['setupStep1', 'setupStep2', 'setupStep3', 'setupStepComplete'].forEach((id) => {
+    const el = getById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  const stepEl = getById(`setupStep${step}`);
+  if (stepEl) stepEl.style.display = 'block';
+
+  const footer = getById('setupWizardFooter');
+  const nextBtn = getById('setupNextBtn');
+  const skipBtn = getById('setupSkipBtn');
+
+  if (step === 4) {
+    if (footer) footer.style.display = 'none';
+  } else {
+    if (footer) footer.style.display = 'flex';
+    if (nextBtn) nextBtn.textContent = step === 3 ? 'Finish' : 'Next';
+    if (skipBtn) skipBtn.style.display = step === 1 ? 'none' : 'inline-block';
+  }
+}
+
+async function handleSetupNext() {
+  if (setupStep < 3) {
+    setupStep++;
+    showSetupStep(setupStep);
+    return;
+  }
+
+  await finishSetup();
+}
+
+async function finishSetup() {
+  const siteName = getById('setup-site-name')?.value?.trim() || 'My Career Site';
+  const headline = getById('setup-headline')?.value?.trim() || '';
+  const link1Title = getById('setup-link1-title')?.value?.trim();
+  const link1Url = getById('setup-link1-url')?.value?.trim() || '#consultation';
+  const link2Title = getById('setup-link2-title')?.value?.trim();
+  const link2Url = getById('setup-link2-url')?.value?.trim() || '#freebies';
+  const enableConsultation = getById('setup-mod-consultation')?.checked ?? true;
+  const enableAnalytics = getById('setup-mod-analytics')?.checked ?? false;
+
+  try {
+    if (siteName || headline) {
+      await updateSiteSettings({
+        site_name: siteName,
+        headline: headline || siteName,
+        subheadline: '',
+        footer_text: `Copyright ${new Date().getFullYear()} ${siteName}. All rights reserved.`,
+        cta_title: 'Ready to take the next step?',
+        cta_subtitle: 'Book a 1:1 session and lets decode your career together.',
+        cta_button_text: 'Book a Consultation',
+      });
+    }
+
+    if (link1Title) {
+      await saveLinkData(null, {
+        title: link1Title,
+        url: link1Url || `#${link1Title.toLowerCase().replace(/\s+/g, '-')}`,
+        icon: 'bi-link-45deg',
+        link_type: link1Url.startsWith('#') ? 'internal' : 'external',
+        internal_target: link1Url.startsWith('#') ? link1Url.slice(1) : null,
+        style_bg: '#eef2ff',
+        display_order: 0,
+        is_active: true,
+      });
+    }
+
+    if (link2Title) {
+      await saveLinkData(null, {
+        title: link2Title,
+        url: link2Url || `#${link2Title.toLowerCase().replace(/\s+/g, '-')}`,
+        icon: 'bi-download',
+        link_type: link2Url.startsWith('#') ? 'internal' : 'external',
+        internal_target: link2Url.startsWith('#') ? link2Url.slice(1) : null,
+        style_bg: '#f5f7f8',
+        display_order: 1,
+        is_active: true,
+      });
+    }
+
+    await updateModuleStatus('consultation', enableConsultation);
+    await updateModuleStatus('analytics', enableAnalytics);
+
+    await completeSetup();
+
+    showSetupStep(4);
+    setTimeout(() => {
+      hideSetupWizard();
+      void refreshDashboard();
+      void loadSiteSettingsAdmin();
+      void refreshAdminLinks();
+      void refreshModulesAdmin();
+    }, 1500);
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Setup failed. You can continue to the dashboard.'), {
+      tone: 'error',
+      title: 'Setup issue',
+    });
+    hideSetupWizard();
+  }
+}
+
+function handleSetupSkip() {
+  hideSetupWizard();
+}
+
+export function bindSetupWizardEvents() {
+  getById('setupNextBtn')?.addEventListener('click', () => void handleSetupNext());
+  getById('setupSkipBtn')?.addEventListener('click', () => handleSetupSkip());
 }

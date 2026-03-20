@@ -25,6 +25,83 @@
     </form>
   </div>
 
+  <div id="setupWizard" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold"><i class="bi bi-rocket-takeoff me-2"></i>Welcome to CodeYourCareer</h5>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted">Lets get your site ready. Answer a few questions to get started.</p>
+
+          <div id="setupStep1">
+            <h6 class="fw-bold mb-3">Step 1: Your Site</h6>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Site Name</label>
+              <input type="text" id="setup-site-name" class="form-control" placeholder="My Career Site" maxlength="100">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Tagline / Headline</label>
+              <input type="text" id="setup-headline" class="form-control" placeholder="Helping you land your dream job" maxlength="200">
+            </div>
+          </div>
+
+          <div id="setupStep2" style="display:none;">
+            <h6 class="fw-bold mb-3">Step 2: Quick Links</h6>
+            <p class="text-muted small mb-3">Add links to show on your homepage. You can always change these later.</p>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Link 1 Title</label>
+              <input type="text" id="setup-link1-title" class="form-control" placeholder="Book a Session" maxlength="80">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Link 1 URL <span class="text-muted">(or #target for internal)</span></label>
+              <input type="text" id="setup-link1-url" class="form-control" placeholder="#consultation" maxlength="500">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Link 2 Title</label>
+              <input type="text" id="setup-link2-title" class="form-control" placeholder="Free Resources" maxlength="80">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Link 2 URL <span class="text-muted">(or #target for internal)</span></label>
+              <input type="text" id="setup-link2-url" class="form-control" placeholder="#freebies" maxlength="500">
+            </div>
+          </div>
+
+          <div id="setupStep3" style="display:none;">
+            <h6 class="fw-bold mb-3">Step 3: Enable Features</h6>
+            <p class="text-muted small mb-3">Turn on the features you want on your site.</p>
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="setup-mod-consultation" checked>
+              <label class="form-check-label" for="setup-mod-consultation">
+                <strong>Consultation Bookings</strong>
+                <div class="text-muted small">Let visitors book 1:1 sessions with you</div>
+              </label>
+            </div>
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="setup-mod-analytics">
+              <label class="form-check-label" for="setup-mod-analytics">
+                <strong>Traffic Analytics</strong>
+                <div class="text-muted small">Track visits, clicks, and conversions</div>
+              </label>
+            </div>
+          </div>
+
+          <div id="setupStepComplete" style="display:none;">
+            <div class="text-center py-4">
+              <i class="bi bi-check-circle-fill text-success fs-1"></i>
+              <h5 class="fw-bold mt-3">You are all set!</h5>
+              <p class="text-muted">Your site is ready. Explore the dashboard to customize everything.</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" id="setupWizardFooter">
+          <button type="button" class="btn btn-outline-dark" id="setupSkipBtn">Skip setup</button>
+          <button type="button" class="btn btn-dark" id="setupNextBtn">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="dashboard" class="container hidden mt-4" style="max-width:1100px;">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
       <div>
@@ -43,6 +120,7 @@
       <button class="admin-tab" type="button" data-admin-tab="links"><i class="bi bi-link-45deg me-1"></i>Links</button>
       <button class="admin-tab" type="button" data-admin-tab="content"><i class="bi bi-box-seam me-1"></i>Content</button>
       <button class="admin-tab" type="button" data-admin-tab="modules"><i class="bi bi-grid me-1"></i>Modules</button>
+      <button class="admin-tab" type="button" data-admin-tab="maintenance"><i class="bi bi-gear me-1"></i>Maintenance</button>
     </nav>
 
     <div id="tab-overview" class="admin-tab-panel active">
@@ -85,9 +163,8 @@
         <div class="col-md-6">
           <div class="admin-card">
             <h5 class="fw-bold mb-3">Site Content</h5>
-            <div class="mb-2"><label class="small fw-bold">SITE NAME</label><input type="text" id="set-site-name" class="form-control"></div>
-            <div class="mb-2"><label class="small fw-bold">HEADLINE</label><input type="text" id="set-headline" class="form-control"></div>
-            <div class="mb-2"><label class="small fw-bold">SUBHEADLINE</label><textarea id="set-subheadline" class="form-control" rows="2"></textarea></div>
+            <div class="mb-2"><label class="small fw-bold">SITE NAME <span class="text-muted" title="The name of your site displayed in the browser tab and public header."><i class="bi bi-question-circle"></i></span></label><input type="text" id="set-site-name" class="form-control"></div>
+            <div class="mb-2"><label class="small fw-bold">HEADLINE <span class="text-muted" title="Your main value proposition or tagline shown on the homepage."><i class="bi bi-question-circle"></i></span></label><textarea id="set-headline" class="form-control" rows="2"></textarea></div>
             <div class="mb-2"><label class="small fw-bold">FOOTER TEXT</label><input type="text" id="set-footer" class="form-control"></div>
             <hr>
             <h6 class="fw-bold mb-2">CTA Section</h6>
@@ -96,6 +173,44 @@
             <div class="mb-3"><label class="small fw-bold">CTA BUTTON TEXT</label><input type="text" id="set-cta-button" class="form-control"></div>
             <button id="site-settings-save" class="btn btn-dark w-100" type="button">Save Settings</button>
           </div>
+        </div>
+        <div class="col-md-6">
+          <div class="admin-card mb-4">
+            <h5 class="fw-bold mb-3">Logo</h5>
+            <div class="mb-2"><label class="small fw-bold">LOGO TYPE</label>
+              <select id="set-logo-type" class="form-select">
+                <option value="svg">SVG Code</option>
+                <option value="image">Image URL</option>
+                <option value="emoji">Emoji</option>
+              </select>
+            </div>
+            <div id="logo-svg-field" class="mb-2"><label class="small fw-bold">SVG CODE <span class="text-muted" title="Paste your SVG markup here. Use inline SVG for best results."><i class="bi bi-question-circle"></i></span></label><textarea id="set-logo-svg" class="form-control" rows="3" style="font-size:0.75rem;"></textarea></div>
+            <div id="logo-image-field" class="mb-2" style="display:none"><label class="small fw-bold">IMAGE URL</label><input type="text" id="set-logo-image" class="form-control mb-2" placeholder="https://... or upload below"><div class="d-flex gap-2 align-items-center"><input type="file" id="set-logo-image-file" class="form-control" accept="image/png,image/jpeg,image/webp,image/gif"><button type="button" id="upload-logo-button" class="btn btn-outline-dark btn-sm">Upload</button></div><div class="form-text">Uploaded files are stored on the API server.</div></div>
+            <div id="logo-emoji-field" class="mb-2" style="display:none"><label class="small fw-bold">EMOJI</label><input type="text" id="set-logo-emoji" class="form-control" maxlength="4"></div>
+          </div>
+          <div class="admin-card">
+            <h5 class="fw-bold mb-3">Theme Colors <span class="text-muted" title="Customize your site colors. Changes apply to the public site immediately."><i class="bi bi-question-circle"></i></span></h5>
+            <div class="color-row">
+              <div class="color-item"><label>Background</label><input type="color" id="set-bg-color" value="#f8f9fa"></div>
+              <div class="color-item"><label>Text</label><input type="color" id="set-text-color" value="#111111"></div>
+              <div class="color-item"><label>Secondary</label><input type="color" id="set-text-sec" value="#555555"></div>
+              <div class="color-item"><label>Accent</label><input type="color" id="set-accent" value="#000000"></div>
+            </div>
+            <div class="color-row">
+              <div class="color-item"><label>Card BG</label><input type="color" id="set-card-bg" value="#ffffff"></div>
+              <div class="color-item"><label>Card Border</label><input type="color" id="set-card-border" value="#e0e0e0"></div>
+            </div>
+            <h6 class="fw-bold mt-3 mb-2" style="font-size:0.85rem;">CTA Colors</h6>
+            <div class="color-row">
+              <div class="color-item"><label>CTA BG</label><input type="color" id="set-cta-bg" value="#111111"></div>
+              <div class="color-item"><label>CTA Text</label><input type="color" id="set-cta-text" value="#ffffff"></div>
+              <div class="color-item"><label>Btn BG</label><input type="color" id="set-cta-btn-bg" value="#ffffff"></div>
+              <div class="color-item"><label>Btn Text</label><input type="color" id="set-cta-btn-text" value="#000000"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
         </div>
         <div class="col-md-6">
           <div class="admin-card mb-4">
@@ -142,9 +257,9 @@
             <h5 class="fw-bold mb-3"><i class="bi bi-link-45deg"></i> Link Editor</h5>
             <form id="link-form">
               <input type="hidden" id="link-id">
-              <div class="mb-2"><label class="small fw-bold">TITLE</label><input type="text" id="link-title" class="form-control" required></div>
-              <div class="mb-2"><label class="small fw-bold">URL</label><input type="text" id="link-url" class="form-control" required></div>
-              <div class="mb-2"><label class="small fw-bold">ICON</label><input type="text" id="link-icon" class="form-control" value="bi-link-45deg"><div class="form-text"><a href="https://icons.getbootstrap.com/" target="_blank" rel="noreferrer">Browse icons</a></div></div>
+              <div class="mb-2"><label class="small fw-bold">TITLE <span class="text-muted" title="The clickable text shown on the homepage link card."><i class="bi bi-question-circle"></i></span></label><input type="text" id="link-title" class="form-control" required></div>
+              <div class="mb-2"><label class="small fw-bold">URL <span class="text-muted" title="For external links, paste the full URL. For internal links, use #target format."><i class="bi bi-question-circle"></i></span></label><input type="text" id="link-url" class="form-control" required></div>
+              <div class="mb-2"><label class="small fw-bold">ICON <span class="text-muted" title="Bootstrap Icon class name. Click the link to browse available icons."><i class="bi bi-question-circle"></i></span></label><input type="text" id="link-icon" class="form-control" value="bi-link-45deg"><div class="form-text"><a href="https://icons.getbootstrap.com/" target="_blank" rel="noreferrer">Browse icons</a></div></div>
               <div class="mb-2"><label class="small fw-bold">TYPE</label>
                 <select id="link-type" class="form-select">
                   <option value="external">External</option>
@@ -152,7 +267,7 @@
                 </select>
               </div>
               <div id="internal-fields" style="display:none;">
-                <div class="mb-2"><label class="small fw-bold">TARGET</label>
+                <div class="mb-2"><label class="small fw-bold">TARGET <span class="text-muted" title="Which section of your site this link navigates to."><i class="bi bi-question-circle"></i></span></label>
                   <select id="link-internal-target" class="form-select">
                     <option value="">--</option>
                     <option value="freebies">Freebies</option>
@@ -251,6 +366,42 @@
           </div>
         </div>
         <div id="analytics-data"></div>
+      </div>
+    </div>
+
+    <div id="tab-maintenance" class="admin-tab-panel">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="admin-card">
+            <h5 class="fw-bold mb-3"><i class="bi bi-cloud-arrow-up"></i> Database Backup</h5>
+            <p class="text-muted small mb-3">Create a full database backup. Last 5 backups are retained. Backups are compressed SQL dumps stored locally.</p>
+            <div id="backup-status" class="small mb-3 text-muted"></div>
+            <button id="backup-create-btn" class="btn btn-dark me-2"><i class="bi bi-plus-circle me-1"></i>Create Backup</button>
+            <button id="backup-list-btn" class="btn btn-outline-dark"><i class="bi bi-list me-1"></i>View Backups</button>
+            <div id="backup-list" class="mt-3"></div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="admin-card">
+            <h5 class="fw-bold mb-3"><i class="bi bi-trash"></i> Data Cleanup</h5>
+            <p class="text-muted small mb-3">Remove old analytics data to reduce database size. Data older than the retention period will be permanently deleted.</p>
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <label class="small fw-bold me-2">Delete data older than:</label>
+              <input type="number" id="cleanup-days" class="form-control" style="width:80px;" value="90" min="1" max="365">
+              <span>days</span>
+            </div>
+            <button id="cleanup-run-btn" class="btn btn-outline-danger"><i class="bi bi-exclamation-triangle me-1"></i>Run Cleanup</button>
+            <div id="cleanup-result" class="mt-3 small"></div>
+          </div>
+        </div>
+      </div>
+      <div class="row mt-4">
+        <div class="col-12">
+          <div class="admin-card">
+            <h5 class="fw-bold mb-3"><i class="bi bi-database-check"></i> Database Status</h5>
+            <div id="db-status" class="small text-muted">Checking database connection...</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

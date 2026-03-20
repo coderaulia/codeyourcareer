@@ -20,6 +20,7 @@ import {
 import { buildUploadUrl, createImageUploadMiddleware, runImageUpload } from '../uploads.js';
 import { createAdminCoreRoutes } from './admin-core-routes.js';
 import { createAdminEngagementRoutes } from './admin-engagement-routes.js';
+import { createMaintenanceRoutes } from './admin-maintenance-routes.js';
 import { createAuthRouter, createRequireAdmin } from './auth-routes.js';
 import { createPublicRoutes } from './public-routes.js';
 
@@ -79,6 +80,7 @@ export function createApiRouter(config = {}) {
 
   adminRouter.use(createAdminCoreRoutes(deps));
   adminRouter.use(createAdminEngagementRoutes(deps));
+  adminRouter.use(createMaintenanceRoutes(deps));
   router.use('/admin', adminRouter);
 
   router.use((_request, response) => {

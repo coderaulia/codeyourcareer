@@ -62,6 +62,28 @@ function normalizeResourcePayload(table, payload) {
 export function createAdminCoreRoutes(deps) {
   const router = Router();
 
+  router.get('/setup-status', asyncHandler(async (_request, response) => {
+    const [links, siteName] = await Promise.all([
+      deps.one('SELECT COUNT(*) AS count FROM links WHERE is_active = 1'),
+      deps.one('SELECT site_name FROM site_settings WHERE id = 1'),
+    ]);
+
+    const hasContent = Number(links?.count || 0) > 0;
+    const isConfigured = siteName?.site_name && siteName.site_name !== 'CodeYourCareer.my.id';
+
+    response.json({
+      data: {
+        needsSetup: !isConfigured && !hasContent,
+        hasContent,
+        isConfigured,
+      },
+    });
+  }));
+
+  router.post('/setup-complete', asyncHandler(async (request, response) => {
+    response.json({ data: { success: true } });
+  }));
+
   router.get('/dashboard-stats', asyncHandler(async (_request, response) => {
     const [links, bookings, messages, clicks] = await Promise.all([
       getCount(deps, 'SELECT COUNT(*) AS count FROM links WHERE is_active = 1'),
