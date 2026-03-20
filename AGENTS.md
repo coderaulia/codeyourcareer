@@ -201,24 +201,32 @@ Use `server/middleware/validate.js` for input validation:
 
 ### API Backend Updates
 
-When backend files change, update the deploy zip:
+When backend files change, update the deploy folder:
 
-1. Copy changed files to `deploy/api-subdomain/`:
-   - `server/routes/*.js` → `deploy/api-subdomain/server/routes/`
-   - `server/middleware/*.js` → `deploy/api-subdomain/server/middleware/`
-   - `server/scripts/*.js` → `deploy/api-subdomain/server/scripts/`
-   - `scripts/*.js` → `deploy/api-subdomain/scripts/`
+1. Copy changed files to `deploy/api-release/` (flat structure at root):
+   - `server/routes/*.js` → `deploy/api-release/server/routes/`
+   - `server/middleware/*.js` → `deploy/api-release/server/middleware/`
+   - `server/scripts/*.js` → `deploy/api-release/server/scripts/`
+   - `scripts/*.js` → `deploy/api-release/scripts/`
 
-2. Update `.env.example` in `deploy/api-subdomain/` when env vars change
-
-3. Regenerate the zip:
+2. Copy updated files:
    ```bash
-   cd deploy
-   rm -f codeyourcareer-api-subdomain-flat.zip
-   powershell -Command "Compress-Archive -Path 'api-subdomain' -DestinationPath 'codeyourcareer-api-subdomain-flat.zip'"
+   cp server/routes/*.js deploy/api-release/server/routes/
+   cp server/middleware/*.js deploy/api-release/server/middleware/
+   cp server/scripts/*.js deploy/api-release/server/scripts/
+   cp scripts/*.js deploy/api-release/scripts/
+   cp .env.example deploy/api-release/
+   cp package.json deploy/api-release/
    ```
 
-4. Notify user to download and re-upload the new zip
+3. Regenerate the flat zip:
+   ```bash
+   cd deploy
+   rm -f codeyourcareer-api-flat.zip
+   powershell -Command "Compress-Archive -Path 'api-release/*' -DestinationPath 'codeyourcareer-api-flat.zip'"
+   ```
+
+4. Notify user to download `deploy/codeyourcareer-api-flat.zip` and re-upload to Hostinger
 
 ### Environment Variable Changes
 
