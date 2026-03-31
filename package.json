@@ -8,7 +8,7 @@
     "dev:api": "node --watch server/index.js",
     "dev:full": "concurrently \"npm:dev:api\" \"npm:dev\"",
     "build": "vite build",
-    "build:analyze": "vite build --mode analyze",
+    "build:analyze": "vite build --config vite.config.analyze.js",
     "preview": "vite preview",
     "start": "node server/index.js",
     "seed:admin": "node server/scripts/seed-admin.js",

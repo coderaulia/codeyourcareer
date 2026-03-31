@@ -1,19 +1,16 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
-
-// Note: rollup-plugin-visualizer is only used for `npm run build:analyze`
-// It's excluded from this config to avoid dependency issues in production builds.
-// To use: npm run build:analyze (requires rollup-plugin-visualizer as devDependency)
+import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-    },
-  },
+  plugins: [
+    visualizer({
+      filename: resolve(process.cwd(), 'reports', 'bundle-stats.html'),
+      gzipSize: true,
+      brotliSize: true,
+      open: true,
+    }),
+  ],
   build: {
     rollupOptions: {
       input: {
