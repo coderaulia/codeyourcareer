@@ -257,3 +257,12 @@ export async function completeSetup() {
     method: 'POST',
   });
 }
+
+export async function getActivityLog(params = {}) {
+  const query = new URLSearchParams();
+  if (params.limit) query.set('limit', params.limit);
+  if (params.offset) query.set('offset', params.offset);
+  if (params.action) query.set('action', params.action);
+  if (params.adminId) query.set('adminId', params.adminId);
+  return apiRequest(`/admin/activity-log?${query.toString()}`);
+}

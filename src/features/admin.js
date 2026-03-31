@@ -19,6 +19,7 @@ import {
   getSiteSettings,
   getTestimonials,
   getVersionInfo,
+  getActivityLog,
   listBackups,
   reorderCollection,
   restoreBackup,
@@ -1738,6 +1739,89 @@ export function initMaintenanceTab() {
   }
 
   void checkDatabaseHealth();
+}
+
+const ACTIVITY_LABELS = {
+  login: { icon: 'bi-box-arrow-in-right', label: 'Logged in', color: 'success' },
+  logout: { icon: 'bi-box-arrow-right', label: 'Logged out', color: 'secondary' },
+  password_change: { icon: 'bi-key', label: 'Changed password', color: 'warning' },
+  settings_update: { icon: 'bi-gear', label: 'Updated settings', color: 'info' },
+  link_create: { icon: 'bi-plus-circle', label: 'Created link', color: 'success' },
+  link_update: { icon: 'bi-pencil', label: 'Updated link', color: 'info' },
+  link_delete: { icon: 'bi-trash', label: 'Deleted link', color: 'danger' },
+  resource_create: { icon: 'bi-plus-circle', label: 'Created resource', color: 'success' },
+  resource_update: { icon: 'bi-pencil', label: 'Updated resource', color: 'info' },
+  resource_delete: { icon: 'bi-trash', label: 'Deleted resource', color: 'danger' },
+  booking_update: { icon: 'bi-calendar-check', label: 'Updated booking', color: 'info' },
+  testimonial_create: { icon: 'bi-chat-quote', label: 'Created testimonial', color: 'success' },
+  testimonial_update: { icon: 'bi-pencil', label: 'Updated testimonial', color: 'info' },
+  testimonial_delete: { icon: 'bi-trash', label: 'Deleted testimonial', color: 'danger' },
+  message_read: { icon: 'bi-envelope-open', label: 'Marked message read', color: 'info' },
+  message_delete: { icon: 'bi-trash', label: 'Deleted message', color: 'danger' },
+  module_toggle: { icon: 'bi-toggle-on', label: 'Toggled module', color: 'info' },
+  backup_create: { icon: 'bi-cloud-arrow-up', label: 'Created backup', color: 'success' },
+  backup_restore: { icon: 'bi-cloud-arrow-down', label: 'Restored backup', color: 'warning' },
+  backup_delete: { icon: 'bi-trash', label: 'Deleted backup', color: 'danger' },
+  cleanup_run: { icon: 'bi-broom', label: 'Ran cleanup', color: 'warning' },
+};
+
+export async function loadActivityLog(filter = '') {
+  const listEl = getById('activity-list');
+  if (!listEl) return;
+
+  listEl.innerHTML = '<div class="text-muted">Loading...</div>';
+
+  try {
+    const result = await getActivityLog(filter ? { action: filter } : {});
+    const activities = result?.data?.activities || [];
+
+    if (!activities.length) {
+      listEl.innerHTML = '<div class="text-muted">No activity recorded yet.</div>';
+      return;
+    }
+
+    listEl.innerHTML = activities
+      .map((activity) => {
+        const meta = ACTIVITY_LABELS[activity.action] || { icon: 'bi-circle', label: activity.action, color: 'secondary' };
+        const date = new Date(activity.createdAt);
+        return `<div class="d-flex justify-content-between align-items-start border-bottom py-2">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi ${meta.icon} text-${meta.color}"></i>
+            <div>
+              <div><strong>${meta.label}</strong></div>
+              <div class="text-muted small">${activity.adminEmail || 'Unknown user'}</div>
+              ${activity.details ? `<div class="text-muted small">${escapeHtml(typeof activity.details === 'string' ? activity.details : JSON.stringify(activity.details))}</div>` : ''}
+            </div>
+          </div>
+          <div class="text-muted small text-end" style="min-width: 100px;">
+            <div>${date.toLocaleDateString()}</div>
+            <div>${date.toLocaleTimeString()}</div>
+          </div>
+        </div>`;
+      })
+      .join('');
+  } catch (error) {
+    listEl.innerHTML = `<div class="text-danger">Failed to load activity: ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+export function initActivityTab() {
+  const filterSelect = getById('activity-filter');
+  const refreshBtn = getById('activity-refresh-btn');
+
+  if (filterSelect) {
+    filterSelect.addEventListener('change', () => {
+      void loadActivityLog(filterSelect.value);
+    });
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      void loadActivityLog(filterSelect?.value || '');
+    });
+  }
+
+  void loadActivityLog();
 }
 
 let setupWizard = null;

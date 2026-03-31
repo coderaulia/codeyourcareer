@@ -13,6 +13,7 @@ import {
   editLink,
   editTestimonial,
   exportAnalyticsCsv,
+  initActivityTab,
   initMaintenanceTab,
   loadAnalytics,
   moveCollectionItem,
@@ -44,6 +45,10 @@ function openAdminTab(tabName) {
 
   if (tabName === 'maintenance') {
     initMaintenanceTab();
+  }
+
+  if (tabName === 'activity') {
+    initActivityTab();
   }
 
   switchAdminTab(button, tabName);

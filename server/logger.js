@@ -96,3 +96,70 @@ export function attachRequestContext(request, response, next) {
 
   next();
 }
+
+export const ACTIVITY_ACTIONS = {
+  LOGIN: 'login',
+  LOGOUT: 'logout',
+  PASSWORD_CHANGE: 'password_change',
+  SETTINGS_UPDATE: 'settings_update',
+  LINK_CREATE: 'link_create',
+  LINK_UPDATE: 'link_update',
+  LINK_DELETE: 'link_delete',
+  RESOURCE_CREATE: 'resource_create',
+  RESOURCE_UPDATE: 'resource_update',
+  RESOURCE_DELETE: 'resource_delete',
+  BOOKING_UPDATE: 'booking_update',
+  TESTIMONIAL_CREATE: 'testimonial_create',
+  TESTIMONIAL_UPDATE: 'testimonial_update',
+  TESTIMONIAL_DELETE: 'testimonial_delete',
+  MESSAGE_READ: 'message_read',
+  MESSAGE_DELETE: 'message_delete',
+  MODULE_TOGGLE: 'module_toggle',
+  BACKUP_CREATE: 'backup_create',
+  BACKUP_RESTORE: 'backup_restore',
+  BACKUP_DELETE: 'backup_delete',
+  CLEANUP_RUN: 'cleanup_run',
+};
+
+export function logActivity(options) {
+  const {
+    query,
+    adminId,
+    adminEmail,
+    action,
+    resourceType = null,
+    resourceId = null,
+    details = null,
+    ipAddress = null,
+    userAgent = null,
+  } = options;
+
+  if (!query) {
+    logWarn('activity_log_missing_query', { action });
+    return;
+  }
+
+  const id = randomUUID();
+  const sql = `
+    INSERT INTO activity_log (id, admin_id, admin_email, action, resource_type, resource_id, details, ip_address, user_agent)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const params = [
+    id,
+    adminId || null,
+    adminEmail || null,
+    action,
+    resourceType,
+    resourceId,
+    details ? JSON.stringify(details) : null,
+    ipAddress,
+    userAgent,
+  ];
+
+  query(sql, params).catch((error) => {
+    logWarn('activity_log_failed', { action, error: error.message });
+  });
+
+  logInfo('activity_logged', { action, resourceType, resourceId, adminId });
+}

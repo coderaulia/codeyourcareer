@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
-import { createHttpError, logInfo } from '../logger.js';
+import { createHttpError, logActivity, ACTIVITY_ACTIONS, logInfo } from '../logger.js';
 import { asyncHandler, requiredEmail, requiredText } from './shared.js';
 
 async function getValidatedSessionUser(request, deps) {
@@ -88,7 +88,7 @@ export function createAuthRouter(deps) {
         throw createHttpError(401, 'Invalid email or password.');
       }
 
-      deps.loginRateLimiter.record(request, email, true);
+deps.loginRateLimiter.record(request, email, true);
       const sessionVersion = Number(adminUser.session_version || 1);
       request.session = {
         ...(request.session || {}),
@@ -106,6 +106,15 @@ export function createAuthRouter(deps) {
         requestId: request.requestId,
         userId: adminUser.id,
         email: adminUser.email,
+      });
+
+      logActivity({
+        query: deps.query,
+        adminId: adminUser.id,
+        adminEmail: adminUser.email,
+        action: ACTIVITY_ACTIONS.LOGIN,
+        ipAddress: request.ip || request.headers['x-forwarded-for']?.split(',')[0]?.trim(),
+        userAgent: request.headers['user-agent']?.substring(0, 500),
       });
 
       response.json({
@@ -157,17 +166,26 @@ export function createAuthRouter(deps) {
 
       const csrfToken = deps.issueCsrfToken(request);
 
-      logInfo('admin_password_changed', {
+logInfo('admin_password_changed', {
         requestId: request.requestId,
         userId: request.adminUser.id,
         email: request.adminUser.email,
+      });
+
+      logActivity({
+        query: deps.query,
+        adminId: request.adminUser.id,
+        adminEmail: request.adminUser.email,
+        action: ACTIVITY_ACTIONS.PASSWORD_CHANGE,
+        ipAddress: request.ip || request.headers['x-forwarded-for']?.split(',')[0]?.trim(),
+        userAgent: request.headers['user-agent']?.substring(0, 500),
       });
 
       response.json({ data: { success: true, csrfToken } });
     })
   );
 
-  router.post(
+router.post(
     '/logout',
     asyncHandler(async (request, response) => {
       deps.ensureTrustedOrigin(request, deps.allowedOrigins);
@@ -176,6 +194,14 @@ export function createAuthRouter(deps) {
       const user = await getValidatedSessionUser(request, deps);
       if (user) {
         await deps.rotateAdminSession(user.id, { query: deps.query, one: deps.one });
+        logActivity({
+          query: deps.query,
+          adminId: user.id,
+          adminEmail: user.email,
+          action: ACTIVITY_ACTIONS.LOGOUT,
+          ipAddress: request.ip || request.headers['x-forwarded-for']?.split(',')[0]?.trim(),
+          userAgent: request.headers['user-agent']?.substring(0, 500),
+        });
       }
 
       request.session = null;

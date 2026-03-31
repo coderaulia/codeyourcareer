@@ -114,13 +114,14 @@
       <button id="admin-logout-button" class="btn btn-sm btn-outline-danger" type="button">Logout</button>
     </div>
 
-    <nav class="admin-tabs mb-4">
+<nav class="admin-tabs mb-4">
       <button class="admin-tab active" type="button" data-admin-tab="overview"><i class="bi bi-speedometer2 me-1"></i>Dashboard</button>
       <button class="admin-tab" type="button" data-admin-tab="appearance"><i class="bi bi-palette me-1"></i>Appearance</button>
       <button class="admin-tab" type="button" data-admin-tab="links"><i class="bi bi-link-45deg me-1"></i>Links</button>
       <button class="admin-tab" type="button" data-admin-tab="content"><i class="bi bi-box-seam me-1"></i>Content</button>
       <button class="admin-tab" type="button" data-admin-tab="modules"><i class="bi bi-grid me-1"></i>Modules</button>
       <button class="admin-tab" type="button" data-admin-tab="maintenance"><i class="bi bi-gear me-1"></i>Maintenance</button>
+      <button class="admin-tab" type="button" data-admin-tab="activity"><i class="bi bi-clock-history me-1"></i>Activity</button>
     </nav>
 
     <div id="tab-overview" class="admin-tab-panel active">
@@ -401,6 +402,31 @@
             <h5 class="fw-bold mb-3"><i class="bi bi-database-check"></i> Database Status</h5>
             <div id="db-status" class="small text-muted">Checking database connection...</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-activity" class="admin-tab-panel">
+      <div class="admin-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0"><i class="bi bi-clock-history"></i> Activity Log</h5>
+          <div class="d-flex gap-2">
+            <select id="activity-filter" class="form-select form-select-sm" style="width: 150px;">
+              <option value="">All Actions</option>
+              <option value="login">Logins</option>
+              <option value="logout">Logouts</option>
+              <option value="settings_update">Settings</option>
+              <option value="link_create">Link Created</option>
+              <option value="link_update">Link Updated</option>
+              <option value="link_delete">Link Deleted</option>
+              <option value="backup_create">Backup Created</option>
+              <option value="backup_restore">Backup Restored</option>
+            </select>
+            <button id="activity-refresh-btn" class="btn btn-outline-dark btn-sm"><i class="bi bi-arrow-clockwise"></i></button>
+          </div>
+        </div>
+        <div id="activity-list" class="small">
+          <div class="text-muted">Loading activity...</div>
         </div>
       </div>
     </div>
