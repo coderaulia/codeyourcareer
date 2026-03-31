@@ -115,3 +115,57 @@ export function createLoginRateLimiter({ maxAttempts = 5, windowMs = 15 * 60 * 1
     },
   };
 }
+
+export function createPublicRateLimiter({ maxAttempts = 10, windowMs = 60 * 60 * 1000 } = {}) {
+  const attempts = new Map();
+
+  function prune(now) {
+    attempts.forEach((entry, key) => {
+      if (entry.resetAt <= now) {
+        attempts.delete(key);
+      }
+    });
+  }
+
+  function buildKey(request) {
+    return getClientIp(request);
+  }
+
+  return {
+    check(request) {
+      const now = Date.now();
+      prune(now);
+
+      const key = buildKey(request);
+      const entry = attempts.get(key);
+      if (!entry || entry.resetAt <= now || entry.count < maxAttempts) {
+        return;
+      }
+
+      const retryAfterMinutes = Math.max(1, Math.ceil((entry.resetAt - now) / 60000));
+      throw createHttpError(
+        429,
+        `Too many requests. Please wait ${retryAfterMinutes} minute(s) before trying again.`
+      );
+    },
+
+    record(request) {
+      const key = buildKey(request);
+      const now = Date.now();
+      const existing = attempts.get(key);
+
+      if (!existing || existing.resetAt <= now) {
+        attempts.set(key, {
+          count: 1,
+          resetAt: now + windowMs,
+        });
+        return;
+      }
+
+      attempts.set(key, {
+        count: existing.count + 1,
+        resetAt: existing.resetAt,
+      });
+    },
+  };
+}

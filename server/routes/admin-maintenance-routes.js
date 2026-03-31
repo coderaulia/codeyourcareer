@@ -237,6 +237,48 @@ export function createMaintenanceRoutes(deps = {}) {
     }
   });
 
+  router.get('/db-health', async (req, res) => {
+    try {
+      const [tablesResult] = await query(`
+        SELECT TABLE_NAME, TABLE_ROWS 
+        FROM information_schema.TABLES 
+        WHERE TABLE_SCHEMA = DATABASE()
+      `);
+
+      const [sizeResult] = await query(`
+        SELECT SUM(data_length + index_length) AS size_bytes 
+        FROM information_schema.TABLES 
+        WHERE TABLE_SCHEMA = DATABASE()
+      `);
+
+      const tables = {};
+      for (const row of tablesResult) {
+        tables[row.TABLE_NAME] = row.TABLE_ROWS;
+      }
+
+      const sizeBytes = sizeResult[0]?.size_bytes || 0;
+      const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2);
+
+      res.json({
+        data: {
+          status: 'healthy',
+          tables,
+          sizeMB,
+          checkedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logError('db_health_check_failed', error);
+      res.json({
+        data: {
+          status: 'error',
+          error: error.message,
+          checkedAt: new Date().toISOString(),
+        },
+      });
+    }
+  });
+
   return router;
 }
 

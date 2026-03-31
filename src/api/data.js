@@ -230,6 +230,13 @@ export async function deleteBackup(filename) {
   });
 }
 
+export async function restoreBackup(filename) {
+  return apiRequest('/admin/maintenance/backup/restore', {
+    method: 'POST',
+    body: { filename },
+  });
+}
+
 export async function runCleanup(retentionDays) {
   return apiRequest('/admin/maintenance/cleanup', {
     method: 'POST',

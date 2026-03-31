@@ -16,6 +16,7 @@ import {
   initMaintenanceTab,
   loadAnalytics,
   moveCollectionItem,
+  restoreBackupAction,
   resetLinkForm,
   saveLink,
   saveResource,
@@ -186,6 +187,9 @@ function bindDelegatedAdminActions() {
         break;
       case 'delete-backup':
         void deleteBackupAction(target.dataset.filename || '');
+        break;
+      case 'restore-backup':
+        void restoreBackupAction(target.dataset.filename || '');
         break;
       default:
         break;

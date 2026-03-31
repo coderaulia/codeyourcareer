@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { ensureVisitorSession, trackAnalyticsEvent } from '../analytics.js';
-import { logWarn } from '../logger.js';
+import { createHttpError, logWarn } from '../logger.js';
 import {
   assertResourceTable,
   asyncHandler,
@@ -12,6 +12,88 @@ import {
   requiredEmail,
   requiredText,
 } from './shared.js';
+
+function createBookingRateLimiter({ maxAttempts = 5, windowMs = 60 * 60 * 1000 } = {}) {
+  const attempts = new Map();
+
+  function prune(now) {
+    attempts.forEach((entry, key) => {
+      if (entry.resetAt <= now) {
+        attempts.delete(key);
+      }
+    });
+  }
+
+  function buildKey(request) {
+    const ip = request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.ip || 'unknown';
+    return `booking:${ip}`;
+  }
+
+  return {
+    check(request) {
+      const now = Date.now();
+      prune(now);
+      const key = buildKey(request);
+      const entry = attempts.get(key);
+      if (!entry || entry.resetAt <= now || entry.count < maxAttempts) {
+        return;
+      }
+      const retryAfterMinutes = Math.max(1, Math.ceil((entry.resetAt - now) / 60000));
+      throw createHttpError(429, `Too many booking requests. Please wait ${retryAfterMinutes} minute(s) before trying again.`);
+    },
+    record(request) {
+      const key = buildKey(request);
+      const now = Date.now();
+      const existing = attempts.get(key);
+      if (!existing || existing.resetAt <= now) {
+        attempts.set(key, { count: 1, resetAt: now + windowMs });
+        return;
+      }
+      attempts.set(key, { count: existing.count + 1, resetAt: existing.resetAt });
+    },
+  };
+}
+
+function createContactRateLimiter({ maxAttempts = 10, windowMs = 60 * 60 * 1000 } = {}) {
+  const attempts = new Map();
+
+  function prune(now) {
+    attempts.forEach((entry, key) => {
+      if (entry.resetAt <= now) {
+        attempts.delete(key);
+      }
+    });
+  }
+
+  function buildKey(request) {
+    const ip = request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.ip || 'unknown';
+    return `contact:${ip}`;
+  }
+
+  return {
+    check(request) {
+      const now = Date.now();
+      prune(now);
+      const key = buildKey(request);
+      const entry = attempts.get(key);
+      if (!entry || entry.resetAt <= now || entry.count < maxAttempts) {
+        return;
+      }
+      const retryAfterMinutes = Math.max(1, Math.ceil((entry.resetAt - now) / 60000));
+      throw createHttpError(429, `Too many contact requests. Please wait ${retryAfterMinutes} minute(s) before trying again.`);
+    },
+    record(request) {
+      const key = buildKey(request);
+      const now = Date.now();
+      const existing = attempts.get(key);
+      if (!existing || existing.resetAt <= now) {
+        attempts.set(key, { count: 1, resetAt: now + windowMs });
+        return;
+      }
+      attempts.set(key, { count: existing.count + 1, resetAt: existing.resetAt });
+    },
+  };
+}
 
 async function captureAnalyticsEventSafely(deps, request, payload) {
   try {
@@ -28,6 +110,9 @@ async function captureAnalyticsEventSafely(deps, request, payload) {
 
 export function createPublicRoutes(deps) {
   const router = Router();
+
+  const bookingRateLimiter = deps.bookingRateLimiter || createBookingRateLimiter();
+  const contactRateLimiter = deps.contactRateLimiter || createContactRateLimiter();
 
   router.get(
     '/site-settings',
@@ -117,9 +202,11 @@ export function createPublicRoutes(deps) {
     })
   );
 
-  router.post(
+router.post(
     '/bookings',
     asyncHandler(async (request, response) => {
+      bookingRateLimiter.check(request);
+
       const name = requiredText(request.body?.name, 'Name', 255);
       const email = requiredEmail(request.body?.email, deps.normalizeEmail);
       const topic = requiredText(request.body?.topic, 'Topic', 255);
@@ -130,6 +217,8 @@ export function createPublicRoutes(deps) {
         'INSERT INTO bookings (id, name, email, topic, schedule, status) VALUES (?, ?, ?, ?, ?, ?)',
         [bookingId, name, email, topic, schedule, 'pending']
       );
+
+      bookingRateLimiter.record(request);
 
       if (request.body?.analyticsEnabled) {
         await captureAnalyticsEventSafely(deps, request, {
@@ -158,9 +247,11 @@ export function createPublicRoutes(deps) {
     })
   );
 
-  router.post(
+router.post(
     '/contact-messages',
     asyncHandler(async (request, response) => {
+      contactRateLimiter.check(request);
+
       const name = requiredText(request.body?.name, 'Name', 255);
       const email = requiredEmail(request.body?.email, deps.normalizeEmail);
       const message = requiredText(request.body?.message, 'Message', 2000);
@@ -170,6 +261,8 @@ export function createPublicRoutes(deps) {
         'INSERT INTO contact_messages (id, name, email, message, is_read) VALUES (?, ?, ?, ?, ?)',
         [messageId, name, email, message, 0]
       );
+
+      contactRateLimiter.record(request);
 
       if (request.body?.analyticsEnabled) {
         await captureAnalyticsEventSafely(deps, request, {

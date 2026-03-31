@@ -21,6 +21,7 @@ import {
   getVersionInfo,
   listBackups,
   reorderCollection,
+  restoreBackup,
   runCleanup,
   saveLink as saveLinkData,
   saveResource as saveResourceData,
@@ -1586,9 +1587,10 @@ export async function listBackupsAction() {
             <strong>${escapeHtml(backup.filename)}</strong>
             <div class="text-muted">${date.toLocaleString()} - ${sizeKB} KB</div>
           </div>
-          <div class="d-flex gap-2">
-            <a href="${downloadUrl}" class="btn btn-sm btn-outline-dark" download><i class="bi bi-download"></i></a>
-            <button class="btn btn-sm btn-outline-danger" type="button" data-action="delete-backup" data-filename="${escapeHtml(backup.filename)}"><i class="bi bi-trash"></i></button>
+          <div class="d-flex gap-1">
+            <a href="${downloadUrl}" class="btn btn-sm btn-outline-dark" download title="Download"><i class="bi bi-download"></i></a>
+            <button class="btn btn-sm btn-outline-warning" type="button" data-action="restore-backup" data-filename="${escapeHtml(backup.filename)}" title="Restore"><i class="bi bi-arrow-counterclockwise"></i></button>
+            <button class="btn btn-sm btn-outline-danger" type="button" data-action="delete-backup" data-filename="${escapeHtml(backup.filename)}" title="Delete"><i class="bi bi-trash"></i></button>
           </div>
         </div>`;
       })
@@ -1615,6 +1617,62 @@ export async function deleteBackupAction(filename) {
       tone: 'error',
       title: 'Delete failed',
     });
+  }
+}
+
+export async function restoreBackupAction(filename) {
+  if (!window.confirm(`Restore from backup "${filename}"?\n\nThis will replace ALL current data with the backup data. This cannot be undone.`)) {
+    return;
+  }
+
+  if (!window.confirm('Are you REALLY sure? All current data will be lost!')) {
+    return;
+  }
+
+  const statusEl = getById('backup-status');
+  if (statusEl) statusEl.textContent = 'Restoring backup...';
+
+  try {
+    const result = await restoreBackup(filename);
+    showToast(result?.data?.message || 'Backup restored successfully.', {
+      tone: 'success',
+      title: 'Restore complete',
+    });
+    if (statusEl) statusEl.textContent = `Restored: ${new Date().toLocaleString()}`;
+    void loadSiteSettingsAdmin();
+    void refreshDashboard();
+  } catch (error) {
+    showToast(formatErrorMessage(error, 'Unable to restore backup.'), {
+      tone: 'error',
+      title: 'Restore failed',
+    });
+    if (statusEl) statusEl.textContent = `Restore failed: ${error.message}`;
+  }
+}
+
+export async function checkDatabaseHealth() {
+  const statusEl = getById('db-status');
+  if (!statusEl) return;
+
+  statusEl.innerHTML = '<span class="text-muted">Checking database...</span>';
+
+  try {
+    const { checkDatabaseHealth } = await import('../api/data.js');
+    const result = await checkDatabaseHealth();
+    const data = result?.data;
+
+    if (data?.status === 'healthy') {
+      const tableCount = Object.keys(data.tables || {}).length;
+      statusEl.innerHTML = `<div class="row g-2">
+        <div class="col-auto"><span class="badge bg-success">Connected</span></div>
+        <div class="col-auto"><span class="text-muted">Tables: ${tableCount}</span></div>
+        <div class="col-auto"><span class="text-muted">Size: ${data.sizeMB} MB</span></div>
+      </div>`;
+    } else {
+      statusEl.innerHTML = `<span class="text-warning">${escapeHtml(data?.error || 'Unknown status')}</span>`;
+    }
+  } catch (error) {
+    statusEl.innerHTML = `<span class="text-danger">Connection failed: ${escapeHtml(error.message)}</span>`;
   }
 }
 
@@ -1678,6 +1736,8 @@ export function initMaintenanceTab() {
   if (statusEl) {
     statusEl.textContent = 'Ready to create backup.';
   }
+
+  void checkDatabaseHealth();
 }
 
 let setupWizard = null;
