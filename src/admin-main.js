@@ -220,6 +220,10 @@ function bindAdminUi() {
 bindAdminUi();
 bindSetupWizardEvents();
 void primeAnimator();
-checkAdminSession().then(() => {
+checkAdminSession().then((authenticated) => {
+  if (!authenticated) {
+    return;
+  }
+
   setTimeout(() => void checkSetupWizard(), 500);
 });

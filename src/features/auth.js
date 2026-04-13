@@ -82,7 +82,7 @@ function bindAuthListeners() {
 
 export async function checkAdminSession() {
   if (!document.getElementById('dashboard')) {
-    return;
+    return false;
   }
 
   bindAuthListeners();
@@ -92,21 +92,23 @@ export async function checkAdminSession() {
     if (!session?.authenticated) {
       clearCsrfToken();
       showLoginGate();
-      return;
+      return false;
     }
 
     const user = await getCurrentUser();
     if (!user) {
       clearCsrfToken();
       showLoginGate();
-      return;
+      return false;
     }
 
     showDashboard();
     initAdmin(user);
+    return true;
   } catch {
     clearCsrfToken();
     showLoginGate();
+    return false;
   }
 }
 

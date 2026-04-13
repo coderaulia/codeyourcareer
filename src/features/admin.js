@@ -1660,7 +1660,7 @@ export async function checkDatabaseHealth() {
   try {
     const { checkDatabaseHealth } = await import('../api/data.js');
     const result = await checkDatabaseHealth();
-    const data = result?.data;
+    const data = result;
 
     if (data?.status === 'healthy') {
       const tableCount = Object.keys(data.tables || {}).length;
@@ -1773,7 +1773,7 @@ export async function loadActivityLog(filter = '') {
 
   try {
     const result = await getActivityLog(filter ? { action: filter } : {});
-    const activities = result?.data?.activities || [];
+    const activities = result?.activities || [];
 
     if (!activities.length) {
       listEl.innerHTML = '<div class="text-muted">No activity recorded yet.</div>';
@@ -1830,7 +1830,7 @@ let setupStep = 1;
 export async function checkSetupWizard() {
   try {
     const status = await getSetupStatus();
-    if (status?.data?.needsSetup) {
+    if (status?.needsSetup) {
       showSetupWizard();
     }
   } catch {
