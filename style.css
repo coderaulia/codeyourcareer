@@ -20,6 +20,7 @@ body {
         linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
     background-size: 30px 30px;
+    overflow-x: hidden;
 }
 
 .container-narrow {
@@ -186,6 +187,7 @@ body {
     border-radius: 15px;
     padding: 25px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    min-width: 0;
 }
 
 .hidden {
@@ -225,10 +227,32 @@ body {
 
 .admin-tab-panel {
     display: none;
+    width: 100%;
+    min-width: 0;
 }
 
 .admin-tab-panel.active {
     display: block;
+}
+
+#dashboard {
+    width: min(1100px, calc(100% - 32px));
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.admin-tab-panel .row > * {
+    min-width: 0;
+}
+
+#list-links,
+#list-freebies,
+#list-gear,
+#list-bookings,
+#backup-list,
+#activity-list {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .module-toggle-card {

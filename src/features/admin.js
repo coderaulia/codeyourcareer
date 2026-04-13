@@ -1658,7 +1658,7 @@ export async function checkDatabaseHealth() {
   statusEl.innerHTML = '<span class="text-muted">Checking database...</span>';
 
   try {
-    const { checkDatabaseHealth } = await import('../api/data.js');
+    const { checkDatabaseHealth, getHealthStatus } = await import('../api/data.js');
     const result = await checkDatabaseHealth();
     const data = result;
 
@@ -1673,6 +1673,18 @@ export async function checkDatabaseHealth() {
       statusEl.innerHTML = `<span class="text-warning">${escapeHtml(data?.error || 'Unknown status')}</span>`;
     }
   } catch (error) {
+    if (error?.statusCode === 404) {
+      try {
+        const health = await getHealthStatus();
+        if (health?.ok || health?.database) {
+          statusEl.innerHTML = '<span class="text-muted">Database connected. Detailed health metrics are unavailable on this API release.</span>';
+          return;
+        }
+      } catch {
+        // Fall through to the generic error state.
+      }
+    }
+
     statusEl.innerHTML = `<span class="text-danger">Connection failed: ${escapeHtml(error.message)}</span>`;
   }
 }
